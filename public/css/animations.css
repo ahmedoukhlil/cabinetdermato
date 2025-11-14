@@ -1,0 +1,1403 @@
+/* Animations avancées pour les transitions de menu */
+
+/* Animation d'entrée pour les sous-menus */
+@keyframes slideInDown {
+    0% {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.9);
+        filter: blur(5px);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateY(-10px) scale(0.95);
+        filter: blur(2px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+/* Animation de sortie pour les sous-menus */
+@keyframes slideOutUp {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateY(-10px) scale(0.95);
+        filter: blur(2px);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.9);
+        filter: blur(5px);
+    }
+}
+
+/* Animation d'apparition en fondu avec échelle */
+@keyframes fadeInScale {
+    0% {
+        opacity: 0;
+        transform: scale(0.8) rotate(-2deg);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(0.95) rotate(-1deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+/* Animation de pulsation avec lueur */
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(30, 58, 138, 0.3);
+        transform: scale(1);
+    }
+    25% {
+        box-shadow: 0 0 15px rgba(30, 58, 138, 0.5);
+        transform: scale(1.02);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(30, 58, 138, 0.7);
+        transform: scale(1.05);
+    }
+    75% {
+        box-shadow: 0 0 15px rgba(30, 58, 138, 0.5);
+        transform: scale(1.02);
+    }
+}
+
+/* Animation de rotation pour les icônes */
+@keyframes rotateIn {
+    0% {
+        transform: rotate(-180deg) scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: rotate(-90deg) scale(0.7);
+        opacity: 0.7;
+    }
+    100% {
+        transform: rotate(0deg) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Animation de rebond */
+@keyframes bounceIn {
+    0% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+    70% {
+        transform: scale(0.9);
+        opacity: 0.9;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Animation de glissement horizontal */
+@keyframes slideInLeft {
+    0% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInRight {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ANIMATIONS POUR LES MODAUX */
+/* Animation d'entrée du modal avec zoom et fade */
+@keyframes modalFadeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.7) translateY(-50px);
+        filter: blur(10px);
+    }
+    30% {
+        opacity: 0.5;
+        transform: scale(0.85) translateY(-25px);
+        filter: blur(5px);
+    }
+    60% {
+        opacity: 0.8;
+        transform: scale(0.95) translateY(-10px);
+        filter: blur(2px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0);
+    }
+}
+
+/* Animation de sortie du modal - Version fluide */
+@keyframes modalFadeOut {
+    0% {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotate(0deg);
+        filter: blur(0);
+    }
+    20% {
+        opacity: 0.9;
+        transform: scale(0.98) translateY(-5px) rotate(-1deg);
+        filter: blur(1px);
+    }
+    40% {
+        opacity: 0.7;
+        transform: scale(0.95) translateY(-15px) rotate(-2deg);
+        filter: blur(2px);
+    }
+    60% {
+        opacity: 0.4;
+        transform: scale(0.88) translateY(-30px) rotate(-3deg);
+        filter: blur(4px);
+    }
+    80% {
+        opacity: 0.2;
+        transform: scale(0.75) translateY(-45px) rotate(-4deg);
+        filter: blur(6px);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.6) translateY(-60px) rotate(-5deg);
+        filter: blur(8px);
+    }
+}
+
+/* Animation du backdrop (arrière-plan) */
+@keyframes backdropFadeIn {
+    0% {
+        opacity: 0;
+        backdrop-filter: blur(0);
+    }
+    100% {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+    }
+}
+
+@keyframes backdropFadeOut {
+    0% {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.5);
+    }
+    30% {
+        opacity: 0.8;
+        backdrop-filter: blur(3px);
+        background: rgba(0, 0, 0, 0.4);
+    }
+    60% {
+        opacity: 0.5;
+        backdrop-filter: blur(2px);
+        background: rgba(0, 0, 0, 0.3);
+    }
+    100% {
+        opacity: 0;
+        backdrop-filter: blur(0);
+        background: rgba(0, 0, 0, 0);
+    }
+}
+
+/* Animation d'entrée du contenu du modal */
+@keyframes modalContentSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateY(15px) scale(0.98);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Animation de l'icône de fermeture */
+@keyframes closeButtonSpin {
+    0% {
+        transform: rotate(0deg) scale(1);
+    }
+    25% {
+        transform: rotate(90deg) scale(1.05);
+    }
+    50% {
+        transform: rotate(180deg) scale(1.1);
+    }
+    75% {
+        transform: rotate(270deg) scale(1.05);
+    }
+    100% {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+/* Animation d'apparition du bouton de fermeture */
+@keyframes closeButtonAppear {
+    0% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Classes utilitaires pour les animations */
+.animate-slide-in-down {
+    animation: slideInDown 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-slide-out-up {
+    animation: slideOutUp 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+}
+
+.animate-fade-in-scale {
+    animation: fadeInScale 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.animate-rotate-in {
+    animation: rotateIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-bounce-in {
+    animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-slide-in-left {
+    animation: slideInLeft 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-slide-in-right {
+    animation: slideInRight 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Classes pour les modaux */
+.animate-modal-fade-in {
+    animation: modalFadeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-modal-fade-out {
+    animation: modalFadeOut 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-backdrop-fade-in {
+    animation: backdropFadeIn 0.4s ease-out;
+}
+
+.animate-backdrop-fade-out {
+    animation: backdropFadeOut 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-modal-content-slide-in {
+    animation: modalContentSlideIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.1s both;
+}
+
+.animate-close-button-spin {
+    animation: closeButtonSpin 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-close-button-appear {
+    animation: closeButtonAppear 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Transitions fluides pour les boutons */
+.menu-button {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+    will-change: transform, box-shadow, background-color;
+}
+
+.menu-button:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.menu-button:active {
+    transform: translateY(-1px) scale(0.98);
+    transition: all 0.1s ease;
+}
+
+/* Effet de ripple amélioré */
+.ripple {
+    position: relative;
+    overflow: hidden;
+    transform: translate3d(0, 0, 0);
+}
+
+.ripple-effect {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.3) 70%, transparent 100%);
+    transform: scale(0);
+    animation: ripple-animation 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    pointer-events: none;
+}
+
+@keyframes ripple-animation {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Optimisations pour les transitions Livewire */
+.livewire-transition {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity;
+}
+
+/* Amélioration des performances de rendu */
+.gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform, opacity;
+}
+
+/* Animation de chargement */
+@keyframes shimmer {
+    0% {
+        background-position: -200px 0;
+    }
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
+}
+
+.loading-shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200px 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Animation de notification */
+@keyframes notification-pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+.notification-pulse {
+    animation: notification-pulse 2s infinite;
+}
+
+/* Animation de focus */
+@keyframes focus-ring {
+    0% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
+    }
+    100% {
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+    }
+}
+
+.focus-ring {
+    animation: focus-ring 0.3s ease-out;
+}
+
+/* Animation de succès */
+@keyframes success-checkmark {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.success-checkmark {
+    animation: success-checkmark 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Animation d'erreur */
+@keyframes error-shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-5px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(5px);
+    }
+}
+
+.error-shake {
+    animation: error-shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* Styles spécifiques pour les modaux */
+.modal-backdrop {
+    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.5);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, backdrop-filter, background;
+}
+
+.modal-container {
+    transform-origin: center;
+    will-change: transform, opacity;
+}
+
+.modal-content {
+    transform-origin: top center;
+    will-change: transform, opacity;
+}
+
+/* Animation de l'icône de fermeture au hover */
+.modal-close-button {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+}
+
+.modal-close-button:hover {
+    transform: scale(1.1);
+    color: #ef4444;
+}
+
+.modal-close-button:active {
+    transform: scale(0.9);
+}
+
+/* Animation du header du modal */
+.modal-header {
+    animation: modalContentSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s both;
+    background: #1e3a8a !important;
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h2 {
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-weight: 700;
+    letter-spacing: 0.025em;
+}
+
+.modal-header .header-icon {
+    color: rgba(255, 255, 255, 0.9) !important;
+    margin-right: 0.75rem;
+    font-size: 1.25rem;
+}
+
+/* Animation du contenu du modal */
+.modal-body {
+    animation: modalContentSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.3s both;
+}
+
+/* Styles pour le bouton de fermeture fixe */
+.modal-close-button.fixed {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.modal-close-button.fixed::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.modal-close-button.fixed:hover::before {
+    opacity: 1;
+}
+
+.modal-close-button.fixed:hover {
+    transform: scale(1.1);
+    background-color: #fef2f2 !important;
+    border-color: #ef4444;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.modal-close-button.fixed:active {
+    transform: scale(0.95);
+    transition: all 0.1s ease;
+}
+
+/* Ajustement pour le contenu avec bouton fixe */
+.modal-body.pt-16 {
+    padding-top: 4rem;
+}
+
+/* Styles pour la fermeture fluide des modaux */
+.modal-container.closing {
+    pointer-events: none;
+    user-select: none;
+}
+
+.modal-container.closing .modal-close-button {
+    pointer-events: none;
+}
+
+/* Effet de pulsation pour le bouton de fermeture (sans rotation) */
+.modal-close-button.fixed.animate-close-button-spin {
+    /* animation: closeButtonSpin 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); */
+}
+
+/* ===== ANIMATIONS POUR LES ONGLETS ===== */
+
+/* Animation de transition entre les onglets */
+@keyframes tabSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateX(20px) scale(0.95);
+        filter: blur(2px);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateX(10px) scale(0.98);
+        filter: blur(1px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes tabSlideOut {
+    0% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        filter: blur(0);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateX(-10px) scale(0.98);
+        filter: blur(1px);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-20px) scale(0.95);
+        filter: blur(2px);
+    }
+}
+
+@keyframes tabFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Styles pour les onglets avec transitions fluides */
+.tab-content {
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+}
+
+.tab-content.active {
+    animation: tabSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.tab-content.inactive {
+    animation: tabSlideOut 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Animation pour les boutons d'onglets */
+.tab-button {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.tab-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.tab-button:hover::before {
+    left: 100%;
+}
+
+.tab-button.active {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+}
+
+/* Animation pour le contenu des onglets */
+.tab-panel {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.tab-panel.showing {
+    animation: tabFadeIn 0.3s ease-out;
+}
+
+.tab-panel.hiding {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+/* Responsive Design Improvements */
+@media (max-width: 480px) {
+    .xs\:w-auto {
+        width: auto !important;
+    }
+    
+    .xs\:text-xs {
+        font-size: 0.75rem !important;
+        line-height: 1rem !important;
+    }
+    
+    .xs\:px-2 {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    
+    .xs\:py-1 {
+        padding-top: 0.25rem !important;
+        padding-bottom: 0.25rem !important;
+    }
+    
+    .xs\:gap-1 {
+        gap: 0.25rem !important;
+    }
+    
+    .xs\:text-sm {
+        font-size: 0.875rem !important;
+        line-height: 1.25rem !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .sm\:w-auto {
+        width: auto !important;
+    }
+    
+    .sm\:text-sm {
+        font-size: 0.875rem !important;
+        line-height: 1.25rem !important;
+    }
+    
+    .sm\:px-3 {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+    
+    .sm\:py-2 {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+    
+    .sm\:gap-2 {
+        gap: 0.5rem !important;
+    }
+    
+    .sm\:text-base {
+        font-size: 1rem !important;
+        line-height: 1.5rem !important;
+    }
+}
+
+/* Modal Responsive Improvements */
+@media (max-width: 768px) {
+    .modal-container {
+        margin: 1rem !important;
+        max-width: calc(100vw - 2rem) !important;
+        max-height: calc(100vh - 2rem) !important;
+    }
+    
+    .modal-header {
+        padding: 1rem !important;
+    }
+    
+    .modal-header h2 {
+        font-size: 1.125rem !important;
+    }
+    
+    .modal-body {
+        padding: 1rem !important;
+        max-height: calc(100vh - 8rem) !important;
+        overflow-y: auto !important;
+    }
+    
+    .modal-close-button {
+        top: 0.5rem !important;
+        right: 0.5rem !important;
+        padding: 0.5rem !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .modal-container {
+        margin: 0.5rem !important;
+        max-width: calc(100vw - 1rem) !important;
+        max-height: calc(100vh - 1rem) !important;
+    }
+    
+    .modal-header {
+        padding: 0.75rem !important;
+    }
+    
+    .modal-header h2 {
+        font-size: 1rem !important;
+    }
+    
+    .modal-body {
+        padding: 0.75rem !important;
+        max-height: calc(100vh - 6rem) !important;
+    }
+    
+    .modal-close-button {
+        top: 0.25rem !important;
+        right: 0.25rem !important;
+        padding: 0.25rem !important;
+    }
+}
+
+/* Table Responsive Improvements */
+@media (max-width: 768px) {
+    .table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .table-responsive table {
+        min-width: 600px !important;
+    }
+    
+    .table-responsive th,
+    .table-responsive td {
+        white-space: nowrap !important;
+        padding: 0.5rem !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .table-responsive table {
+        min-width: 500px !important;
+    }
+    
+    .table-responsive th,
+    .table-responsive td {
+        padding: 0.25rem !important;
+        font-size: 0.875rem !important;
+    }
+}
+
+/* Form Responsive Improvements */
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+    
+    .form-grid-2 {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .form-grid {
+        gap: 0.75rem !important;
+    }
+    
+    .form-grid-2 {
+        gap: 0.75rem !important;
+    }
+    
+    input, select, textarea {
+        font-size: 16px !important; /* Prevent zoom on iOS */
+    }
+}
+
+/* Button Responsive Improvements */
+@media (max-width: 640px) {
+    .btn-responsive {
+        width: 100% !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .btn-group-responsive {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+    
+    .btn-group-responsive > * {
+        width: 100% !important;
+    }
+}
+
+/* Card Responsive Improvements */
+@media (max-width: 768px) {
+    .card-responsive {
+        margin: 0.5rem !important;
+        padding: 1rem !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .card-responsive {
+        margin: 0.25rem !important;
+        padding: 0.75rem !important;
+    }
+}
+
+/* Navigation Responsive Improvements */
+@media (max-width: 768px) {
+    .nav-responsive {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+    
+    .nav-responsive > * {
+        width: 100% !important;
+    }
+}
+
+/* Search Responsive Improvements */
+@media (max-width: 640px) {
+    .search-responsive {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+    
+    .search-responsive > * {
+        width: 100% !important;
+    }
+}
+
+/* Utility Classes for Responsive Design */
+.hidden-xs {
+    display: none !important;
+}
+
+@media (min-width: 481px) {
+    .hidden-xs {
+        display: block !important;
+    }
+}
+
+.visible-xs {
+    display: block !important;
+}
+
+@media (min-width: 481px) {
+    .visible-xs {
+        display: none !important;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    .touch-friendly {
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+    
+    .touch-friendly-button {
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .high-dpi {
+        image-rendering: -webkit-optimize-contrast !important;
+        image-rendering: crisp-edges !important;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .dark-mode-support {
+        background-color: #1f2937 !important;
+        color: #f9fafb !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    .landscape-optimized {
+        max-height: 80vh !important;
+        overflow-y: auto !important;
+    }
+    
+    .landscape-optimized .modal-body {
+        max-height: 60vh !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .print-only {
+        display: block !important;
+    }
+    
+    .print-break {
+        page-break-before: always !important;
+    }
+}
+
+/* ANIMATIONS POUR LES MODAUX - VERSION RAPIDE ET DYNAMIQUE */
+/* Animation d'entrée du modal avec effet de vitesse */
+@keyframes modalFadeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.6) translateY(-80px) rotateX(-15deg);
+        filter: blur(15px) brightness(0.8);
+    }
+    20% {
+        opacity: 0.3;
+        transform: scale(0.75) translateY(-50px) rotateX(-10deg);
+        filter: blur(8px) brightness(0.9);
+    }
+    40% {
+        opacity: 0.6;
+        transform: scale(0.85) translateY(-25px) rotateX(-5deg);
+        filter: blur(4px) brightness(0.95);
+    }
+    60% {
+        opacity: 0.8;
+        transform: scale(0.92) translateY(-8px) rotateX(-2deg);
+        filter: blur(2px) brightness(0.98);
+    }
+    80% {
+        opacity: 0.95;
+        transform: scale(0.97) translateY(-2px) rotateX(-1deg);
+        filter: blur(1px) brightness(0.99);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotateX(0deg);
+        filter: blur(0) brightness(1);
+    }
+}
+
+/* Animation de sortie du modal - Version ultra-rapide */
+@keyframes modalFadeOut {
+    0% {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotateX(0deg);
+        filter: blur(0) brightness(1);
+    }
+    15% {
+        opacity: 0.9;
+        transform: scale(0.95) translateY(-10px) rotateX(5deg);
+        filter: blur(2px) brightness(0.95);
+    }
+    30% {
+        opacity: 0.7;
+        transform: scale(0.85) translateY(-25px) rotateX(10deg);
+        filter: blur(4px) brightness(0.9);
+    }
+    50% {
+        opacity: 0.4;
+        transform: scale(0.7) translateY(-45px) rotateX(15deg);
+        filter: blur(8px) brightness(0.8);
+    }
+    70% {
+        opacity: 0.2;
+        transform: scale(0.5) translateY(-70px) rotateX(20deg);
+        filter: blur(12px) brightness(0.7);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.3) translateY(-100px) rotateX(25deg);
+        filter: blur(20px) brightness(0.5);
+    }
+}
+
+/* Animation du backdrop (arrière-plan) - Version rapide */
+@keyframes backdropFadeIn {
+    0% {
+        opacity: 0;
+        backdrop-filter: blur(0);
+        background: rgba(0, 0, 0, 0);
+    }
+    50% {
+        opacity: 0.6;
+        backdrop-filter: blur(2px);
+        background: rgba(0, 0, 0, 0.3);
+    }
+    100% {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.5);
+    }
+}
+
+@keyframes backdropFadeOut {
+    0% {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.5);
+    }
+    50% {
+        opacity: 0.4;
+        backdrop-filter: blur(2px);
+        background: rgba(0, 0, 0, 0.2);
+    }
+    100% {
+        opacity: 0;
+        backdrop-filter: blur(0);
+        background: rgba(0, 0, 0, 0);
+    }
+}
+
+/* Animation d'entrée du contenu du modal - Version dynamique */
+@keyframes modalContentSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(50px) scale(0.9) rotateY(-5deg);
+        filter: blur(5px);
+    }
+    30% {
+        opacity: 0.5;
+        transform: translateY(25px) scale(0.95) rotateY(-2deg);
+        filter: blur(2px);
+    }
+    60% {
+        opacity: 0.8;
+        transform: translateY(8px) scale(0.98) rotateY(-1deg);
+        filter: blur(1px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotateY(0deg);
+        filter: blur(0);
+    }
+}
+
+/* Animation du bouton de fermeture - Version rapide */
+@keyframes closeButtonAppear {
+    0% {
+        opacity: 0;
+        transform: scale(0.3) rotate(-180deg);
+        filter: blur(3px);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(0.7) rotate(-90deg);
+        filter: blur(1px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+        filter: blur(0);
+    }
+}
+
+/* Animation de hover du bouton de fermeture */
+@keyframes closeButtonHover {
+    0% {
+        transform: scale(1) rotate(0deg);
+    }
+    50% {
+        transform: scale(1.1) rotate(5deg);
+    }
+    100% {
+        transform: scale(1.05) rotate(0deg);
+    }
+}
+
+/* Classes utilitaires pour les animations rapides */
+.animate-modal-fade-in {
+    animation: modalFadeIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-modal-fade-out {
+    animation: modalFadeOut 0.3s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+}
+
+.animate-backdrop-fade-in {
+    animation: backdropFadeIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-backdrop-fade-out {
+    animation: backdropFadeOut 0.25s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+}
+
+.animate-modal-content-slide-in {
+    animation: modalContentSlideIn 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.animate-close-button-appear {
+    animation: closeButtonAppear 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Effet de vitesse pour les transitions */
+.speed-transition {
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.speed-transition-fast {
+    transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.speed-transition-ultra {
+    transition: all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Effet de lueur pour les éléments actifs */
+.speed-glow {
+    box-shadow: 0 0 20px rgba(30, 58, 138, 0.3);
+    transition: box-shadow 0.2s ease;
+}
+
+.speed-glow:hover {
+    box-shadow: 0 0 30px rgba(30, 58, 138, 0.5);
+}
+
+/* Animation de pulsation rapide */
+@keyframes speedPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.02);
+        opacity: 0.9;
+    }
+}
+
+.animate-speed-pulse {
+    animation: speedPulse 0.6s ease-in-out infinite;
+}
+
+/* Effet de rebond rapide */
+@keyframes speedBounce {
+    0%, 20%, 53%, 80%, 100% {
+        transform: translate3d(0, 0, 0);
+    }
+    40%, 43% {
+        transform: translate3d(0, -8px, 0);
+    }
+    70% {
+        transform: translate3d(0, -4px, 0);
+    }
+    90% {
+        transform: translate3d(0, -2px, 0);
+    }
+}
+
+.animate-speed-bounce {
+    animation: speedBounce 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Effet de zoom rapide */
+@keyframes speedZoom {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.animate-speed-zoom {
+    animation: speedZoom 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Effet de slide rapide */
+@keyframes speedSlideIn {
+    0% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.animate-speed-slide-in {
+    animation: speedSlideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Effet de fade rapide */
+@keyframes speedFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-speed-fade-in {
+    animation: speedFadeIn 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Optimisations pour les appareils à faible performance */
+@media (prefers-reduced-motion: reduce) {
+    .animate-modal-fade-in,
+    .animate-modal-fade-out,
+    .animate-backdrop-fade-in,
+    .animate-backdrop-fade-out,
+    .animate-modal-content-slide-in,
+    .animate-close-button-appear,
+    .animate-speed-pulse,
+    .animate-speed-bounce,
+    .animate-speed-zoom,
+    .animate-speed-slide-in,
+    .animate-speed-fade-in {
+        animation-duration: 0.1s !important;
+        animation-timing-function: ease-out !important;
+    }
+    
+    .speed-transition,
+    .speed-transition-fast,
+    .speed-transition-ultra {
+        transition-duration: 0.1s !important;
+    }
+}
+
+/* Optimisations pour les écrans haute densité */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .modal-container {
+        transform: translateZ(0) scale(1);
+    }
+}
+
+/* Effet de profondeur pour les modaux */
+.modal-container {
+    box-shadow: 
+        0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Animation de chargement rapide */
+@keyframes speedLoading {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-speed-loading {
+    animation: speedLoading 0.8s linear infinite;
+}
+
+/* Effet de focus rapide */
+.speed-focus:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.3);
+    transform: scale(1.02);
+    transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Styles pour les onglets actifs */
+.tab-button.active {
+    background-color: #1e3a8a !important;
+    color: white !important;
+    border-color: white !important;
+}
+
+.tab-button.active i,
+.tab-button.active span {
+    color: white !important;
+}
+
+.tab-button.active:hover {
+    background-color: #1e40af !important;
+    color: white !important;
+}
