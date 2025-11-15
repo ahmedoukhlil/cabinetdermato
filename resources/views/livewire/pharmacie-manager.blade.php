@@ -62,6 +62,10 @@
     {{-- Onglets --}}
     <div class="mb-6 border-b border-gray-200">
         <nav class="flex space-x-4 overflow-x-auto">
+            <button wire:click="$set('activeTab', 'dashboard')" 
+                    class="px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors {{ $activeTab === 'dashboard' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                <i class="fas fa-chart-line mr-2"></i>Tableau de bord
+            </button>
             <button wire:click="$set('activeTab', 'stock')" 
                     class="px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors {{ $activeTab === 'stock' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 <i class="fas fa-boxes mr-2"></i>Stock actuel
@@ -82,6 +86,144 @@
     </div>
 
     {{-- Contenu des onglets --}}
+
+    {{-- ONGLET TABLEAU DE BORD --}}
+    @if($activeTab === 'dashboard')
+    <div>
+        @php
+            $stats = $this->statistiquesDashboard;
+        @endphp
+        
+        {{-- Cartes de statistiques principales --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {{-- Total médicaments --}}
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg p-8 border-l-6 border-blue-600 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-base font-semibold text-blue-800 uppercase tracking-wide mb-3">Total médicaments</p>
+                        <p class="text-5xl font-extrabold text-blue-900 mb-1">{{ $stats['totalMedicaments'] }}</p>
+                        <p class="text-sm font-medium text-blue-700 mt-2">Médicament(s) en stock</p>
+                    </div>
+                    <div class="bg-blue-500 rounded-2xl p-5 ml-4 shadow-md">
+                        <i class="fas fa-pills text-white text-3xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Valeur du stock --}}
+            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-lg p-8 border-l-6 border-green-600 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-base font-semibold text-green-800 uppercase tracking-wide mb-3">Valeur du stock</p>
+                        <p class="text-4xl font-extrabold text-green-900 mb-1">{{ number_format($stats['valeurStock'], 0, ',', ' ') }}</p>
+                        <p class="text-sm font-medium text-green-700 mt-2">MRU</p>
+                    </div>
+                    <div class="bg-green-500 rounded-2xl p-5 ml-4 shadow-md">
+                        <i class="fas fa-coins text-white text-3xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Total quantité --}}
+            <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-lg p-8 border-l-6 border-purple-600 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-base font-semibold text-purple-800 uppercase tracking-wide mb-3">Quantité totale</p>
+                        <p class="text-5xl font-extrabold text-purple-900 mb-1">{{ number_format($stats['totalQuantiteStock'], 0, ',', ' ') }}</p>
+                        <p class="text-sm font-medium text-purple-700 mt-2">Unité(s) disponible(s)</p>
+                    </div>
+                    <div class="bg-purple-500 rounded-2xl p-5 ml-4 shadow-md">
+                        <i class="fas fa-cubes text-white text-3xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Médicaments en rupture --}}
+            <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-8 border-l-6 border-red-600 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <p class="text-base font-semibold text-red-800 uppercase tracking-wide mb-3">En rupture</p>
+                        <p class="text-5xl font-extrabold text-red-900 mb-1">{{ $stats['medicamentsRupture'] }}</p>
+                        <p class="text-sm font-medium text-red-700 mt-2">Médicament(s) épuisé(s)</p>
+                    </div>
+                    <div class="bg-red-500 rounded-2xl p-5 ml-4 shadow-md">
+                        <i class="fas fa-exclamation-circle text-white text-3xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Cartes d'alertes et mouvements --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {{-- Stock faible --}}
+            <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl shadow-lg p-8 border-l-6 border-yellow-500 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-yellow-900 uppercase tracking-wide">Stock faible</h3>
+                    <div class="bg-yellow-500 rounded-xl p-3 shadow-md">
+                        <i class="fas fa-exclamation-triangle text-white text-2xl"></i>
+                    </div>
+                </div>
+                <p class="text-5xl font-extrabold text-yellow-700 mb-3">{{ $stats['medicamentsStockFaible'] }}</p>
+                <p class="text-base font-semibold text-yellow-800">Médicament(s) sous le seuil minimum</p>
+            </div>
+
+            {{-- Lots expirés --}}
+            <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-8 border-l-6 border-red-600 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-red-900 uppercase tracking-wide">Lots expirés</h3>
+                    <div class="bg-red-600 rounded-xl p-3 shadow-md">
+                        <i class="fas fa-times-circle text-white text-2xl"></i>
+                    </div>
+                </div>
+                <p class="text-5xl font-extrabold text-red-700 mb-3">{{ $stats['lotsExpires'] }}</p>
+                <p class="text-base font-semibold text-red-800">Lot(s) avec date d'expiration dépassée</p>
+            </div>
+
+            {{-- Lots expirant bientôt --}}
+            <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-lg p-8 border-l-6 border-orange-500 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-orange-900 uppercase tracking-wide">Expire bientôt</h3>
+                    <div class="bg-orange-500 rounded-xl p-3 shadow-md">
+                        <i class="fas fa-clock text-white text-2xl"></i>
+                    </div>
+                </div>
+                <p class="text-5xl font-extrabold text-orange-700 mb-3">{{ $stats['lotsExpireBientot'] }}</p>
+                <p class="text-base font-semibold text-orange-800">Lot(s) expirant dans 30 jours</p>
+            </div>
+        </div>
+
+        {{-- Mouvements du mois --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {{-- Entrées ce mois --}}
+            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-lg p-8 border-l-6 border-green-600 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-green-900 uppercase tracking-wide">
+                        <i class="fas fa-arrow-down text-green-600 mr-3 text-2xl"></i>Entrées ce mois
+                    </h3>
+                    <div class="bg-green-600 rounded-xl p-3 shadow-md">
+                        <i class="fas fa-arrow-down text-white text-2xl"></i>
+                    </div>
+                </div>
+                <p class="text-6xl font-extrabold text-green-700 mb-3">{{ $stats['entreesCeMois'] }}</p>
+                <p class="text-base font-semibold text-green-800">Mouvement(s) d'entrée enregistré(s)</p>
+            </div>
+
+            {{-- Sorties ce mois --}}
+            <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-8 border-l-6 border-red-600 hover:shadow-xl transition-shadow duration-300">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-red-900 uppercase tracking-wide">
+                        <i class="fas fa-arrow-up text-red-600 mr-3 text-2xl"></i>Sorties ce mois
+                    </h3>
+                    <div class="bg-red-600 rounded-xl p-3 shadow-md">
+                        <i class="fas fa-arrow-up text-white text-2xl"></i>
+                    </div>
+                </div>
+                <p class="text-6xl font-extrabold text-red-700 mb-3">{{ $stats['sortiesCeMois'] }}</p>
+                <p class="text-base font-semibold text-red-800">Mouvement(s) de sortie enregistré(s)</p>
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- ONGLET STOCK ACTUEL --}}
     @if($activeTab === 'stock')
@@ -189,13 +331,60 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Médicament *</label>
-                                <select wire:model="entreeMedicamentId" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
-                                    <option value="">Sélectionner un médicament</option>
-                                    @foreach($medicaments as $medicament)
-                                        <option value="{{ $medicament->IDMedic }}">{{ $medicament->LibelleMedic }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="relative">
+                                    <input 
+                                        type="text" 
+                                        wire:model.live.debounce.300ms="entreeSearchMedicament"
+                                        placeholder="Rechercher un médicament..."
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                                        autocomplete="off"
+                                    >
+                                    
+                                    <!-- Indicateur de chargement -->
+                                    <div wire:loading class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                    </div>
+                                    
+                                    <!-- Résultats de recherche -->
+                                    @if($entreeShowMedicamentResults && count($entreeMedicamentsResults) > 0)
+                                        <div class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                                            @foreach($entreeMedicamentsResults as $medicament)
+                                                <div 
+                                                    wire:click="selectEntreeMedicament({{ $medicament->IDMedic }})"
+                                                    class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                                                >
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex-1">
+                                                            <div class="font-medium text-gray-900">
+                                                                {{ $medicament->LibelleMedic }}
+                                                            </div>
+                                                            @if($medicament->PrixRef)
+                                                                <div class="text-sm text-gray-600 mt-1">
+                                                                    <i class="fas fa-tag w-4 text-gray-400 mr-2"></i>
+                                                                    Prix: {{ number_format($medicament->PrixRef, 0, ',', ' ') }} MRU
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @elseif($entreeShowMedicamentResults && strlen(trim($entreeSearchMedicament)) >= 1 && !$entreeIsSearchingMedicament && count($entreeMedicamentsResults) === 0)
+                                        <div class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+                                            <div class="p-3 text-gray-400 text-center">
+                                                Aucun médicament trouvé pour "{{ $entreeSearchMedicament }}"
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                                
+                                @if($entreeMedicamentId)
+                                    <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                                        <i class="fas fa-check-circle mr-2"></i>
+                                        Médicament sélectionné: <strong>{{ $entreeLibelleMedic }}</strong>
+                                    </div>
+                                @endif
+                                
                                 @error('entreeMedicamentId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
@@ -211,6 +400,15 @@
                                 <input type="number" step="1" wire:model="entreePrixAchat" 
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" min="0">
                                 @error('entreePrixAchat') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Seuil minimum *</label>
+                                <input type="number" step="1" wire:model="entreeQuantiteMin" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" min="0"
+                                       placeholder="Quantité minimale à maintenir en stock">
+                                @error('entreeQuantiteMin') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                <p class="text-xs text-gray-500 mt-1">Quantité minimale à maintenir en stock pour déclencher une alerte</p>
                             </div>
 
                             <div>
@@ -305,7 +503,7 @@
                                     <div class="text-sm text-gray-500 mt-1">
                                         Stock: <span class="font-semibold {{ $stock->quantiteStock <= $stock->quantiteMin ? 'text-red-600' : 'text-gray-700' }}">{{ number_format($stock->quantiteStock, 0) }}</span>
                                         @php
-                                            $prix = $stock->prixVente > 0 ? $stock->prixVente : ($stock->medicament->PrixRef ?? 0);
+                                            $prix = $stock->medicament->PrixRef ?? 0;
                                         @endphp
                                         @if($prix > 0)
                                             | Prix: <span class="font-semibold">{{ number_format($prix, 0) }} MRU</span>

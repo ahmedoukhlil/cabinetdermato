@@ -21,7 +21,7 @@ class PharmacieManager extends Component
     use WithPagination;
 
     // Onglet actif
-    public $activeTab = 'stock';
+    public $activeTab = 'dashboard';
 
     // Propriétés pour le stock
     public $searchStock = '';
@@ -34,11 +34,18 @@ class PharmacieManager extends Component
     public $entreeLibelleMedic = '';
     public $entreeQuantite = 1;
     public $entreePrixAchat = 0;
+    public $entreeQuantiteMin = 0; // Seuil minimum
     public $entreeNumeroLot = '';
     public $entreeDateExpiration = null;
     public $entreeFournisseur = '';
     public $entreeReferenceFacture = '';
     public $entreeNotes = '';
+    
+    // Propriétés pour l'autocomplete de médicament
+    public $entreeSearchMedicament = '';
+    public $entreeMedicamentsResults = [];
+    public $entreeShowMedicamentResults = false;
+    public $entreeIsSearchingMedicament = false;
 
     // Patient sélectionné depuis le composant parent
     public $patientId = null;
@@ -162,23 +169,115 @@ class PharmacieManager extends Component
         $this->entreeLibelleMedic = '';
         $this->entreeQuantite = 1;
         $this->entreePrixAchat = 0;
+        $this->entreeQuantiteMin = 0;
         $this->entreeNumeroLot = '';
         $this->entreeDateExpiration = null;
         $this->entreeFournisseur = '';
         $this->entreeReferenceFacture = '';
         $this->entreeNotes = '';
+        $this->entreeSearchMedicament = '';
+        $this->entreeMedicamentsResults = [];
+        $this->entreeShowMedicamentResults = false;
+        $this->entreeIsSearchingMedicament = false;
+    }
+
+    public function updatedEntreeSearchMedicament()
+    {
+        $search = trim($this->entreeSearchMedicament);
+        
+        if (strlen($search) >= 1) {
+            $this->searchEntreeMedicaments();
+        } else {
+            $this->entreeMedicamentsResults = [];
+            $this->entreeShowMedicamentResults = false;
+            $this->entreeMedicamentId = null;
+            $this->entreeLibelleMedic = '';
+        }
+    }
+
+    public function searchEntreeMedicaments()
+    {
+        $this->entreeIsSearchingMedicament = true;
+        
+        try {
+            $search = trim($this->entreeSearchMedicament);
+            
+            if (empty($search)) {
+                $this->entreeMedicamentsResults = [];
+                $this->entreeShowMedicamentResults = false;
+                $this->entreeIsSearchingMedicament = false;
+                return;
+            }
+            
+            $query = Medicament::where('fkidtype', 1); // Seulement les médicaments
+            
+            // Si la recherche est numérique, chercher aussi par ID
+            if (is_numeric($search)) {
+                $query->where(function($q) use ($search) {
+                    $q->where('LibelleMedic', 'like', '%' . $search . '%')
+                      ->orWhere('IDMedic', '=', (int)$search);
+                });
+            } else {
+                $query->where('LibelleMedic', 'like', '%' . $search . '%');
+            }
+
+            $this->entreeMedicamentsResults = $query
+                ->select('IDMedic', 'LibelleMedic', 'PrixRef', 'fkidtype')
+                ->orderBy('LibelleMedic')
+                ->limit(20)
+                ->get();
+
+            $this->entreeShowMedicamentResults = true;
+            
+        } catch (\Exception $e) {
+            \Log::error('Erreur recherche médicament', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            session()->flash('error', 'Erreur lors de la recherche : ' . $e->getMessage());
+            $this->entreeMedicamentsResults = [];
+            $this->entreeShowMedicamentResults = false;
+        } finally {
+            $this->entreeIsSearchingMedicament = false;
+        }
+    }
+
+    public function selectEntreeMedicament($medicamentId)
+    {
+        try {
+            $medicament = Medicament::find($medicamentId);
+
+            if ($medicament && $medicament->fkidtype == 1) {
+                $this->entreeMedicamentId = $medicament->IDMedic;
+                $this->entreeLibelleMedic = $medicament->LibelleMedic;
+                $this->entreeSearchMedicament = $medicament->LibelleMedic;
+                $this->entreeMedicamentsResults = [];
+                $this->entreeShowMedicamentResults = false;
+            } else {
+                session()->flash('error', 'Médicament non trouvé ou invalide.');
+            }
+        } catch (\Exception $e) {
+            session()->flash('error', 'Une erreur est survenue lors de la sélection du médicament.');
+        }
+    }
+
+    public function closeEntreeMedicamentResults()
+    {
+        $this->entreeShowMedicamentResults = false;
     }
 
     public function enregistrerEntree()
     {
         $this->validate([
             'entreeMedicamentId' => 'required|integer|exists:medicaments,IDMedic',
-            'entreeQuantite' => 'required|numeric|min:0.01',
-            'entreePrixAchat' => 'required|numeric|min:0',
+            'entreeQuantite' => 'required|integer|min:1',
+            'entreePrixAchat' => 'required|integer|min:0',
+            'entreeQuantiteMin' => 'required|integer|min:0',
         ], [
             'entreeMedicamentId.required' => 'Veuillez sélectionner un médicament',
             'entreeQuantite.required' => 'La quantité est requise',
             'entreePrixAchat.required' => 'Le prix d\'achat est requis',
+            'entreeQuantiteMin.required' => 'Le seuil minimum est requis',
         ]);
 
         DB::transaction(function () {
@@ -193,7 +292,7 @@ class PharmacieManager extends Component
                 ],
                 [
                     'quantiteStock' => 0,
-                    'quantiteMin' => 0,
+                    'quantiteMin' => $this->entreeQuantiteMin,
                     'prixAchat' => $this->entreePrixAchat,
                     'prixVente' => Medicament::find($this->entreeMedicamentId)->PrixRef ?? 0,
                     'Masquer' => 0
@@ -228,6 +327,7 @@ class PharmacieManager extends Component
             $stock->update([
                 'quantiteStock' => $stock->quantiteStock + $this->entreeQuantite,
                 'prixAchat' => $nouveauPrixAchat,
+                'quantiteMin' => $this->entreeQuantiteMin, // Mettre à jour le seuil minimum
                 'dateDerniereEntree' => Carbon::now()
             ]);
 
@@ -296,8 +396,8 @@ class PharmacieManager extends Component
             return;
         }
 
-        // Prix de référence (depuis le stock ou le médicament)
-        $prixRef = $stock->prixVente > 0 ? $stock->prixVente : $medicament->PrixRef;
+        // Prix de référence (toujours depuis la table medicaments)
+        $prixRef = $medicament->PrixRef ?? 0;
         // Prix facturé (par défaut égal au prix de référence, mais peut être modifié)
         $prixFacture = $prixRef;
 
@@ -571,6 +671,9 @@ class PharmacieManager extends Component
         $this->alertesStockFaible = StockMedicament::where('fkidCabinet', $cabinetId)
             ->whereColumn('quantiteStock', '<=', 'quantiteMin')
             ->where('Masquer', 0)
+            ->whereHas('medicament', function($q) {
+                $q->where('fkidtype', 1);
+            })
             ->count();
 
         $this->alertesExpires = LotMedicament::whereHas('stock', function($q) use ($cabinetId) {
@@ -594,6 +697,108 @@ class PharmacieManager extends Component
             ->count();
     }
 
+    // ========== TABLEAU DE BORD ==========
+
+    public function getStatistiquesDashboardProperty()
+    {
+        $cabinetId = Auth::user()->fkidcabinet;
+        
+        // Total des médicaments en stock
+        $totalMedicaments = StockMedicament::where('fkidCabinet', $cabinetId)
+            ->where('Masquer', 0)
+            ->whereHas('medicament', function($q) {
+                $q->where('fkidtype', 1);
+            })
+            ->count();
+
+        // Médicaments en rupture de stock
+        $medicamentsRupture = StockMedicament::where('fkidCabinet', $cabinetId)
+            ->where('quantiteStock', '<=', 0)
+            ->where('Masquer', 0)
+            ->whereHas('medicament', function($q) {
+                $q->where('fkidtype', 1);
+            })
+            ->count();
+
+        // Médicaments avec stock faible
+        $medicamentsStockFaible = StockMedicament::where('fkidCabinet', $cabinetId)
+            ->whereColumn('quantiteStock', '<=', 'quantiteMin')
+            ->where('quantiteStock', '>', 0)
+            ->where('Masquer', 0)
+            ->whereHas('medicament', function($q) {
+                $q->where('fkidtype', 1);
+            })
+            ->count();
+
+        // Valeur totale du stock (quantité * prix d'achat moyen)
+        $valeurStock = StockMedicament::where('fkidCabinet', $cabinetId)
+            ->where('Masquer', 0)
+            ->whereHas('medicament', function($q) {
+                $q->where('fkidtype', 1);
+            })
+            ->selectRaw('SUM(quantiteStock * prixAchat) as total')
+            ->value('total') ?? 0;
+
+        // Total des quantités en stock
+        $totalQuantiteStock = StockMedicament::where('fkidCabinet', $cabinetId)
+            ->where('Masquer', 0)
+            ->whereHas('medicament', function($q) {
+                $q->where('fkidtype', 1);
+            })
+            ->sum('quantiteStock');
+
+        // Entrées ce mois
+        $entreesCeMois = MouvementStock::whereHas('stock', function($q) use ($cabinetId) {
+                $q->where('fkidCabinet', $cabinetId);
+            })
+            ->where('typeMouvement', 'ENTREE')
+            ->whereMonth('dateMouvement', Carbon::now()->month)
+            ->whereYear('dateMouvement', Carbon::now()->year)
+            ->count();
+
+        // Sorties ce mois
+        $sortiesCeMois = MouvementStock::whereHas('stock', function($q) use ($cabinetId) {
+                $q->where('fkidCabinet', $cabinetId);
+            })
+            ->where('typeMouvement', 'SORTIE')
+            ->whereMonth('dateMouvement', Carbon::now()->month)
+            ->whereYear('dateMouvement', Carbon::now()->year)
+            ->count();
+
+        // Lots expirés
+        $lotsExpires = LotMedicament::whereHas('stock', function($q) use ($cabinetId) {
+                $q->where('fkidCabinet', $cabinetId);
+            })
+            ->whereNotNull('dateExpiration')
+            ->where('dateExpiration', '<', Carbon::now())
+            ->where('quantiteRestante', '>', 0)
+            ->where('Masquer', 0)
+            ->count();
+
+        // Lots expirant dans 30 jours
+        $dateLimite = Carbon::now()->addDays(30);
+        $lotsExpireBientot = LotMedicament::whereHas('stock', function($q) use ($cabinetId) {
+                $q->where('fkidCabinet', $cabinetId);
+            })
+            ->whereNotNull('dateExpiration')
+            ->where('dateExpiration', '>=', Carbon::now())
+            ->where('dateExpiration', '<=', $dateLimite)
+            ->where('quantiteRestante', '>', 0)
+            ->where('Masquer', 0)
+            ->count();
+
+        return [
+            'totalMedicaments' => $totalMedicaments,
+            'medicamentsRupture' => $medicamentsRupture,
+            'medicamentsStockFaible' => $medicamentsStockFaible,
+            'valeurStock' => $valeurStock,
+            'totalQuantiteStock' => $totalQuantiteStock,
+            'entreesCeMois' => $entreesCeMois,
+            'sortiesCeMois' => $sortiesCeMois,
+            'lotsExpires' => $lotsExpires,
+            'lotsExpireBientot' => $lotsExpireBientot,
+        ];
+    }
 
     public function getMedicamentsProperty()
     {

@@ -3,6 +3,24 @@
         <h2 class="text-2xl font-bold">Facture/DEVIS</h2>
         <p class="text-primary-light mt-1">Sélectionnez un patient pour gérer ses paiements</p>
     </div>
+    
+    {{-- Onglets de séparation Actes / Pharmacie --}}
+    @if($selectedPatient)
+    <div class="bg-white rounded-lg shadow-md border border-gray-200">
+        <div class="border-b border-gray-200">
+            <nav class="flex -mb-px">
+                <button wire:click="switchTabInterface('actes')" 
+                        class="flex-1 px-6 py-4 text-center font-semibold text-sm transition-colors duration-200 {{ $activeTabInterface === 'actes' ? 'border-b-4 border-blue-600 text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50' }}">
+                    <i class="fas fa-stethoscope mr-2"></i>Facturation des Actes
+                </button>
+                <button wire:click="switchTabInterface('pharmacie')" 
+                        class="flex-1 px-6 py-4 text-center font-semibold text-sm transition-colors duration-200 {{ $activeTabInterface === 'pharmacie' ? 'border-b-4 border-purple-600 text-purple-600 bg-purple-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50' }}">
+                    <i class="fas fa-pills mr-2"></i>Facturation Pharmacie
+                </button>
+            </nav>
+        </div>
+    </div>
+    @endif
 
     <div class="bg-white rounded-lg shadow-xl overflow-hidden">
         <div class="p-6">
@@ -41,21 +59,23 @@
     @if($factures)
     <div class="mb-6" wire:loading.class="opacity-50">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold">
-                @if($depuisPharmacie)
-                    Factures Pharmacie du patient
+            <h2 class="text-xl font-semibold flex items-center gap-2">
+                @if($activeTabInterface === 'pharmacie')
+                    <i class="fas fa-pills text-purple-600"></i>
+                    <span>Factures Pharmacie du patient</span>
                 @else
-                    Factures du patient
+                    <i class="fas fa-stethoscope text-blue-600"></i>
+                    <span>Factures Actes du patient</span>
                 @endif
             </h2>
-            @if(!$depuisPharmacie)
-            <button wire:click="openMedecinModal" class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors duration-200 flex items-center gap-2">
-                <i class="fas fa-plus"></i> Nouvelle facture
+            @if($activeTabInterface === 'actes')
+            <button wire:click="openMedecinModal" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2">
+                <i class="fas fa-plus"></i> Nouvelle facture actes
             </button>
             @else
-            <div class="px-4 py-2 bg-purple-100 text-purple-700 rounded border border-purple-300 flex items-center gap-2">
-                <i class="fas fa-pills"></i> Mode Pharmacie - Seuls les médicaments sont affichés
-            </div>
+            <button wire:click="openMedecinModal" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2">
+                <i class="fas fa-plus"></i> Nouvelle facture pharmacie
+            </button>
             @endif
         </div>
         <div class="overflow-x-auto">
@@ -215,15 +235,14 @@
                                              <button wire:click.stop="ouvrirReglementFacture({{ $facture->Idfacture }})" class="min-w-[120px] px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-primary-dark transition-colors duration-200 flex items-center justify-center">
                                                  Payer
                                              </button>
-                                            @if(!$depuisPharmacie)
-                                            <div class="flex flex-wrap gap-2">
-                                                <button wire:click.stop="openAddActeForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-primary-dark transition-colors duration-200 flex items-center justify-center gap-2">
-                                                    <i class="fas fa-plus"></i> Ajouter un acte
-                                                </button>
-                                                <button wire:click.stop="openAddMedicamentForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2">
-                                                    <i class="fas fa-pills"></i> Médicament/Analyse/Radio
-                                                </button>
-                                            </div>
+                                            @if($activeTabInterface === 'actes')
+                                            <button wire:click.stop="openAddActeForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2">
+                                                <i class="fas fa-plus"></i> Ajouter un acte
+                                            </button>
+                                            @else
+                                            <button wire:click.stop="openAddMedicamentForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors duration-200 flex items-center justify-center gap-2">
+                                                <i class="fas fa-pills"></i> Ajouter médicament
+                                            </button>
                                             @endif
                                              <a href="{{ route('consultations.facture-patient', $facture->Idfacture) }}" target="_blank" class="min-w-[120px] px-4 py-2 text-sm font-semibold bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center gap-2">
                                                  <i class="fas fa-print"></i> Imprimer

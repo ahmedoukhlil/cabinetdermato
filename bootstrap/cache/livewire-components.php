@@ -23,6 +23,7 @@
   'pharmacie-manager' => 'App\\Http\\Livewire\\PharmacieManager',
   'rdv-reminders' => 'App\\Http\\Livewire\\RdvReminders',
   'reglement-facture' => 'App\\Http\\Livewire\\ReglementFacture',
+  'reglement-pharmacie' => 'App\\Http\\Livewire\\ReglementPharmacie',
   'rendez-vous-manager' => 'App\\Http\\Livewire\\RendezVousManager',
   'statistiques-manager' => 'App\\Http\\Livewire\\StatistiquesManager',
   'type-paiement-manager' => 'App\\Http\\Livewire\\TypePaiementManager',

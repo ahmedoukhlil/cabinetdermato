@@ -73,6 +73,9 @@ class ReglementFacture extends Component
 
     // Flag pour indiquer que le règlement vient de l'onglet Pharmacie
     public $depuisPharmacie = false;
+    
+    // Onglet actif dans l'interface (actes ou pharmacie)
+    public $activeTabInterface = 'actes'; // 'actes' ou 'pharmacie'
 
     public function getFacturesProperty()
     {
@@ -83,16 +86,24 @@ class ReglementFacture extends Component
             }
             
             // Utiliser un cache court (5 minutes) pour les factures car elles peuvent changer
-            $cacheKey = 'factures_patient_' . $patientId . '_page_' . $this->currentPage . '_pharmacie_' . ($this->depuisPharmacie ? '1' : '0');
+            $cacheKey = 'factures_patient_' . $patientId . '_page_' . $this->currentPage . '_tab_' . $this->activeTabInterface;
             return Cache::remember($cacheKey, 300, function() use ($patientId) {
                 $query = Facture::where('IDPatient', $patientId);
                 
-                // Si le règlement vient de l'onglet Pharmacie, filtrer uniquement les factures de médicaments
-                if ($this->depuisPharmacie) {
+                // Filtrer selon l'onglet actif
+                if ($this->activeTabInterface === 'pharmacie') {
+                    // Uniquement les factures de médicaments (IsAct = 2)
                     $query->whereHas('details', function($q) {
-                        $q->where('IsAct', 2); // Uniquement les médicaments
+                        $q->where('IsAct', 2);
                     })->whereDoesntHave('details', function($q) {
-                        $q->where('IsAct', '!=', 2); // Exclure les factures qui contiennent autre chose que des médicaments
+                        $q->where('IsAct', '!=', 2);
+                    });
+                } else {
+                    // Uniquement les factures d'actes (IsAct = 1)
+                    $query->whereHas('details', function($q) {
+                        $q->where('IsAct', 1);
+                    })->whereDoesntHave('details', function($q) {
+                        $q->where('IsAct', '!=', 1);
                     });
                 }
                 
@@ -117,8 +128,20 @@ class ReglementFacture extends Component
     public function filtrerFacturesPharmacie()
     {
         $this->depuisPharmacie = true;
+        $this->activeTabInterface = 'pharmacie';
         $this->showAddActeForm = false; // Masquer le formulaire d'ajout d'actes
         $this->showAddMedicamentForm = false; // Masquer le formulaire d'ajout de médicaments
+        $this->loadFactures();
+    }
+    
+    public function switchTabInterface($tab)
+    {
+        $this->activeTabInterface = $tab;
+        if ($tab === 'pharmacie') {
+            $this->depuisPharmacie = true;
+        } else {
+            $this->depuisPharmacie = false;
+        }
         $this->loadFactures();
     }
 
@@ -420,16 +443,8 @@ class ReglementFacture extends Component
         $medicament = \App\Models\Medicament::find($medicamentId);
         
         if ($medicament) {
-            // Pour les médicaments (fkidtype = 1), vérifier le prix du stock en priorité
-            if ($medicament->fkidtype == 1) {
-                $stock = StockMedicament::where('fkidMedicament', $medicamentId)
-                    ->where('fkidCabinet', Auth::user()->fkidcabinet)
-                    ->first();
-                
-                $prixRef = $stock && $stock->prixVente > 0 ? $stock->prixVente : ($medicament->PrixRef ?? 0);
-            } else {
-                $prixRef = $medicament->PrixRef ?? 0;
-            }
+            // Prix de référence (toujours depuis la table medicaments)
+            $prixRef = $medicament->PrixRef ?? 0;
             
             $this->prixReferenceMedicament = $prixRef;
             $this->prixFactureMedicament = $prixRef; // Par défaut égal au prix de référence, mais peut être modifié
@@ -942,6 +957,10 @@ class ReglementFacture extends Component
             throw new \Exception('Stock insuffisant pour ce médicament. Stock disponible: ' . ($stock ? $stock->quantiteStock : 0));
         }
 
+        // Récupérer le prix depuis la table medicaments
+        $medicament = \App\Models\Medicament::find($medicamentId);
+        $prixVente = $medicament ? ($medicament->PrixRef ?? 0) : 0;
+
         $quantiteRestante = $quantite;
         $lots = LotMedicament::where('fkidStock', $stock->idStock)
             ->where('quantiteRestante', '>', 0)
@@ -971,8 +990,8 @@ class ReglementFacture extends Component
                 'fkidLot' => $lot->idLot,
                 'typeMouvement' => 'SORTIE',
                 'quantite' => -$quantiteAPrendre,
-                'prixUnitaire' => $stock->prixVente > 0 ? $stock->prixVente : 0,
-                'montantTotal' => ($stock->prixVente > 0 ? $stock->prixVente : 0) * $quantiteAPrendre,
+                'prixUnitaire' => $prixVente,
+                'montantTotal' => $prixVente * $quantiteAPrendre,
                 'motif' => 'Vente via facture',
                 'fkidFacture' => $factureId,
                 'fkidDetailFacture' => $detailFactureId,
@@ -994,8 +1013,8 @@ class ReglementFacture extends Component
                 'fkidLot' => null,
                 'typeMouvement' => 'SORTIE',
                 'quantite' => -$quantiteRestante,
-                'prixUnitaire' => $stock->prixVente > 0 ? $stock->prixVente : 0,
-                'montantTotal' => ($stock->prixVente > 0 ? $stock->prixVente : 0) * $quantiteRestante,
+                'prixUnitaire' => $prixVente,
+                'montantTotal' => $prixVente * $quantiteRestante,
                 'motif' => 'Vente via facture',
                 'fkidFacture' => $factureId,
                 'fkidDetailFacture' => $detailFactureId,
