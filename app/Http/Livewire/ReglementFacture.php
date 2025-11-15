@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Cache;
 use App\Models\Facturepatient;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use App\Models\StockMedicament;
+use App\Models\LotMedicament;
+use App\Models\MouvementStock;
 
 class ReglementFacture extends Component
 {
@@ -64,8 +67,12 @@ class ReglementFacture extends Component
         'patientSelected' => 'handlePatientSelected',
         'acteSelected' => 'handleActeSelected',
         'medicamentSelected' => 'handleMedicamentSelected',
-        'closeModal' => 'closeAddActeForm'
+        'closeModal' => 'closeAddActeForm',
+        'reglementDepuisPharmacie' => 'filtrerFacturesPharmacie'
     ];
+
+    // Flag pour indiquer que le règlement vient de l'onglet Pharmacie
+    public $depuisPharmacie = false;
 
     public function getFacturesProperty()
     {
@@ -76,10 +83,20 @@ class ReglementFacture extends Component
             }
             
             // Utiliser un cache court (5 minutes) pour les factures car elles peuvent changer
-            $cacheKey = 'factures_patient_' . $patientId . '_page_' . $this->currentPage;
+            $cacheKey = 'factures_patient_' . $patientId . '_page_' . $this->currentPage . '_pharmacie_' . ($this->depuisPharmacie ? '1' : '0');
             return Cache::remember($cacheKey, 300, function() use ($patientId) {
-                return Facture::where('IDPatient', $patientId)
-                    ->with([
+                $query = Facture::where('IDPatient', $patientId);
+                
+                // Si le règlement vient de l'onglet Pharmacie, filtrer uniquement les factures de médicaments
+                if ($this->depuisPharmacie) {
+                    $query->whereHas('details', function($q) {
+                        $q->where('IsAct', 2); // Uniquement les médicaments
+                    })->whereDoesntHave('details', function($q) {
+                        $q->where('IsAct', '!=', 2); // Exclure les factures qui contiennent autre chose que des médicaments
+                    });
+                }
+                
+                return $query->with([
                         'medecin' => function($query) {
                             $query->select('idMedecin', 'Nom');
                         }
@@ -95,6 +112,14 @@ class ReglementFacture extends Component
             });
         }
         return null;
+    }
+
+    public function filtrerFacturesPharmacie()
+    {
+        $this->depuisPharmacie = true;
+        $this->showAddActeForm = false; // Masquer le formulaire d'ajout d'actes
+        $this->showAddMedicamentForm = false; // Masquer le formulaire d'ajout de médicaments
+        $this->loadFactures();
     }
 
     public function mount($selectedPatient = null)
@@ -224,6 +249,7 @@ class ReglementFacture extends Component
         if ($this->pourQui === null && $this->factureSelectionnee && ($facture = Facture::find($this->factureSelectionnee['id'])) && $facture->ISTP == 1) {
             throw new \Exception('Veuillez préciser pour qui est le règlement (Patient ou PEC).');
         }
+        
         try {
             DB::beginTransaction();
 
@@ -240,6 +266,37 @@ class ReglementFacture extends Component
             $typePaiement = RefTypePaiement::find($this->modePaiement);
             if (!$typePaiement) {
                 throw new \Exception('Mode de paiement non trouvé');
+            }
+
+            // Vérifier le stock avant le règlement si la facture contient des médicaments
+            $resteAPayerAvant = ($facture->ISTP > 0 ? ($facture->TotalfactPatient ?? 0) : ($facture->TotFacture ?? 0)) - ($facture->TotReglPatient ?? 0);
+            $resteAPayerPECAvant = $facture->ISTP > 0 ? (($facture->TotalPEC ?? 0) - ($facture->ReglementPEC ?? 0)) : 0;
+            $seraCompletementPayee = ($resteAPayerAvant - $this->montantReglement <= 0) && ($resteAPayerPECAvant <= 0);
+            
+            // Si la facture sera complètement payée après ce règlement, vérifier le stock
+            if ($seraCompletementPayee) {
+                $detailsMedicaments = Detailfacturepatient::where('fkidfacture', $facture->Idfacture)
+                    ->where('IsAct', 2)
+                    ->whereNotNull('fkidmedicament')
+                    ->get();
+                
+                // Vérifier si le stock a déjà été déduit
+                $mouvementsExistants = MouvementStock::where('fkidFacture', $facture->Idfacture)
+                    ->where('typeMouvement', 'SORTIE')
+                    ->exists();
+                
+                if (!$mouvementsExistants && $detailsMedicaments->isNotEmpty()) {
+                    // Vérifier le stock disponible pour tous les médicaments
+                    foreach ($detailsMedicaments as $detail) {
+                        $stock = StockMedicament::where('fkidMedicament', $detail->fkidmedicament)
+                            ->where('fkidCabinet', Auth::user()->fkidcabinet)
+                            ->first();
+                        
+                        if (!$stock || $stock->quantiteStock < $detail->Quantite) {
+                            throw new \Exception('Stock insuffisant pour le médicament "' . $detail->Actes . '". Stock disponible: ' . ($stock ? number_format($stock->quantiteStock, 0) : '0') . '. Le stock ne sera déduit qu\'après le paiement complet de la facture.');
+                        }
+                    }
+                }
             }
 
             $isRemboursement = $this->montantReglement < 0;
@@ -275,6 +332,19 @@ class ReglementFacture extends Component
                 $facture->TotReglPatient = ($facture->TotReglPatient ?? 0) + $montantOperation;
             }
             $facture->save();
+            
+            // Recharger la facture pour avoir les valeurs à jour
+            $facture->refresh();
+
+            // Vérifier si la facture est maintenant complètement payée
+            $resteAPayerPatient = ($facture->ISTP > 0 ? ($facture->TotalfactPatient ?? 0) : ($facture->TotFacture ?? 0)) - ($facture->TotReglPatient ?? 0);
+            $resteAPayerPEC = $facture->ISTP > 0 ? (($facture->TotalPEC ?? 0) - ($facture->ReglementPEC ?? 0)) : 0;
+            $estCompletementPayee = $resteAPayerPatient <= 0 && $resteAPayerPEC <= 0;
+
+            // Si la facture est complètement payée, déduire le stock des médicaments
+            if ($estCompletementPayee) {
+                $this->deduireStockFacture($facture);
+            }
 
             DB::commit();
 
@@ -350,8 +420,19 @@ class ReglementFacture extends Component
         $medicament = \App\Models\Medicament::find($medicamentId);
         
         if ($medicament) {
-            $this->prixReferenceMedicament = $medicament->PrixRef ?? 0;
-            $this->prixFactureMedicament = $medicament->PrixRef ?? 0;
+            // Pour les médicaments (fkidtype = 1), vérifier le prix du stock en priorité
+            if ($medicament->fkidtype == 1) {
+                $stock = StockMedicament::where('fkidMedicament', $medicamentId)
+                    ->where('fkidCabinet', Auth::user()->fkidcabinet)
+                    ->first();
+                
+                $prixRef = $stock && $stock->prixVente > 0 ? $stock->prixVente : ($medicament->PrixRef ?? 0);
+            } else {
+                $prixRef = $medicament->PrixRef ?? 0;
+            }
+            
+            $this->prixReferenceMedicament = $prixRef;
+            $this->prixFactureMedicament = $prixRef; // Par défaut égal au prix de référence, mais peut être modifié
         } else {
             $this->prixReferenceMedicament = null;
             $this->prixFactureMedicament = null;
@@ -402,7 +483,33 @@ class ReglementFacture extends Component
 
             $isAct = $medicament->fkidtype + 1; // 2=Médicament, 3=Analyse, 4=Radio
 
-            \App\Models\Detailfacturepatient::create([
+            // Vérifier le stock avant d'ajouter à la facture (uniquement pour les médicaments)
+            if ($isAct == 2) {
+                $stock = StockMedicament::where('fkidMedicament', $this->selectedMedicamentId)
+                    ->where('fkidCabinet', Auth::user()->fkidcabinet)
+                    ->first();
+
+                if (!$stock) {
+                    throw new \Exception('Ce médicament n\'est pas en stock.');
+                }
+
+                // Calculer la quantité déjà facturée mais non payée pour ce médicament
+                $patientId = is_array($this->selectedPatient) ? ($this->selectedPatient['ID'] ?? null) : ($this->selectedPatient->ID ?? null);
+                $quantiteDejaFacturee = Detailfacturepatient::join('facture', 'detailfacturepatient.fkidfacture', '=', 'facture.Idfacture')
+                    ->where('detailfacturepatient.fkidmedicament', $this->selectedMedicamentId)
+                    ->where('detailfacturepatient.IsAct', 2)
+                    ->where('facture.IDPatient', $patientId)
+                    ->whereRaw('(CASE WHEN facture.ISTP > 0 THEN facture.TotalfactPatient ELSE facture.TotFacture END) > (facture.TotReglPatient + COALESCE(facture.ReglementPEC, 0))')
+                    ->sum('detailfacturepatient.Quantite');
+
+                $stockDisponible = $stock->quantiteStock - $quantiteDejaFacturee;
+
+                if ($stockDisponible < $this->quantiteMedicament) {
+                    throw new \Exception('Stock insuffisant pour ce médicament. Stock disponible: ' . number_format($stockDisponible, 0) . ' (Stock total: ' . number_format($stock->quantiteStock, 0) . ', Déjà facturé non payé: ' . number_format($quantiteDejaFacturee, 0) . ')');
+                }
+            }
+
+            $detail = \App\Models\Detailfacturepatient::create([
                 'fkidfacture' => $this->factureIdForActe,
                 'DtAjout' => now(),
                 'Actes' => $medicament->LibelleMedic,
@@ -416,6 +523,8 @@ class ReglementFacture extends Component
                 'ActesArab' => 'NR',
                 'Dents' => $this->seanceMedicament ?: 'Med',
             ]);
+
+            // Le stock ne sera pas déduit ici, mais uniquement lors du paiement de la facture
 
             $facture = \App\Models\Facture::find($this->factureIdForActe);
             $prixFactureItem = $this->prixFactureMedicament * $this->quantiteMedicament;
@@ -527,7 +636,10 @@ class ReglementFacture extends Component
                 'PrixFacture' => $this->prixFacture,
                 'Quantite' => $this->quantite,
                 'fkidacte' => $this->selectedActeId,
+                'IsAct' => 1, // Acte médical
                 'Dents' => $this->seance ?: 'Dent',
+                'fkidMedecin' => $this->factureSelectionnee->FkidMedecinInitiateur ?? 1,
+                'fkidcabinet' => Auth::user()->fkidcabinet ?? 1,
             ]);
 
             // Mise à jour de la facture uniquement pour l'acte sélectionné
@@ -575,6 +687,8 @@ class ReglementFacture extends Component
         $this->modePaiement = null;
         $this->pourQui = null;
         $this->showReglementModal = false;
+        $this->depuisPharmacie = false; // Réinitialiser le flag
+        $this->loadFactures(); // Recharger les factures sans filtre
     }
 
     public function setConsultationActe()
@@ -613,6 +727,28 @@ class ReglementFacture extends Component
                 throw new \Exception('Facture non trouvée');
             }
 
+            // Sauvegarder le type avant suppression
+            $isMedicament = $detail->IsAct == 2;
+            $medicamentId = $detail->fkidmedicament;
+            $quantiteMedicament = $detail->Quantite;
+
+            // Si c'est un médicament (IsAct = 2) et que la facture a été payée, vérifier si le stock a été déduit
+            if ($isMedicament && $medicamentId) {
+                $resteAPayerPatient = ($facture->ISTP > 0 ? ($facture->TotalfactPatient ?? 0) : ($facture->TotFacture ?? 0)) - ($facture->TotReglPatient ?? 0);
+                $resteAPayerPEC = $facture->ISTP > 0 ? (($facture->TotalPEC ?? 0) - ($facture->ReglementPEC ?? 0)) : 0;
+                $estPayee = $resteAPayerPatient <= 0 && $resteAPayerPEC <= 0;
+                
+                // Vérifier si le stock a déjà été déduit pour ce détail
+                $mouvementExistant = MouvementStock::where('fkidDetailFacture', $detailId)
+                    ->where('typeMouvement', 'SORTIE')
+                    ->exists();
+                
+                if ($estPayee && $mouvementExistant) {
+                    // La facture est payée et le stock a été déduit, remettre le stock
+                    $this->remettreStockMedicament($medicamentId, $quantiteMedicament, $facture->Idfacture, $detailId);
+                }
+            }
+
             // Calculer le montant à soustraire
             $montantActe = $detail->PrixFacture * $detail->Quantite;
             $txpec = $facture->TXPEC ?? 0;
@@ -628,12 +764,13 @@ class ReglementFacture extends Component
             $detail->delete();
 
             DB::commit();
-            session()->flash('message', 'Acte supprimé avec succès.');
+            $typeLabel = $isMedicament ? 'Médicament' : 'Acte';
+            session()->flash('message', $typeLabel . ' supprimé avec succès.');
             $this->loadFactures(); // Recharger les factures pour voir les changements
 
         } catch (\Exception $e) {
             DB::rollBack();
-            session()->flash('error', 'Une erreur est survenue lors de la suppression de l\'acte : ' . $e->getMessage());
+            session()->flash('error', 'Une erreur est survenue lors de la suppression : ' . $e->getMessage());
         }
     }
 
@@ -754,14 +891,194 @@ class ReglementFacture extends Component
         }
     }
 
+    /**
+     * Déduire le stock de tous les médicaments d'une facture lors du paiement
+     */
+    private function deduireStockFacture($facture)
+    {
+        // Récupérer tous les détails de la facture qui sont des médicaments (IsAct = 2)
+        $detailsMedicaments = Detailfacturepatient::where('fkidfacture', $facture->Idfacture)
+            ->where('IsAct', 2)
+            ->whereNotNull('fkidmedicament')
+            ->get();
+
+        // Vérifier si le stock a déjà été déduit pour cette facture
+        $mouvementsExistants = MouvementStock::where('fkidFacture', $facture->Idfacture)
+            ->where('typeMouvement', 'SORTIE')
+            ->exists();
+
+        if ($mouvementsExistants) {
+            // Le stock a déjà été déduit, ne pas déduire à nouveau
+            return;
+        }
+
+        // Vérifier le stock disponible pour tous les médicaments avant de déduire
+        foreach ($detailsMedicaments as $detail) {
+            $stock = StockMedicament::where('fkidMedicament', $detail->fkidmedicament)
+                ->where('fkidCabinet', Auth::user()->fkidcabinet)
+                ->first();
+
+            if (!$stock || $stock->quantiteStock < $detail->Quantite) {
+                throw new \Exception('Stock insuffisant pour le médicament "' . $detail->Actes . '". Stock disponible: ' . ($stock ? number_format($stock->quantiteStock, 0) : '0'));
+            }
+        }
+
+        // Si tous les stocks sont suffisants, déduire pour chaque médicament
+        foreach ($detailsMedicaments as $detail) {
+            $this->deduireStockMedicament($detail->fkidmedicament, $detail->Quantite, $facture->Idfacture, $detail->idDetfacture);
+        }
+    }
+
+    /**
+     * Déduire le stock d'un médicament lors d'une vente via facture
+     */
+    private function deduireStockMedicament($medicamentId, $quantite, $factureId, $detailFactureId)
+    {
+        $stock = StockMedicament::where('fkidMedicament', $medicamentId)
+            ->where('fkidCabinet', Auth::user()->fkidcabinet)
+            ->first();
+
+        if (!$stock || $stock->quantiteStock < $quantite) {
+            throw new \Exception('Stock insuffisant pour ce médicament. Stock disponible: ' . ($stock ? $stock->quantiteStock : 0));
+        }
+
+        $quantiteRestante = $quantite;
+        $lots = LotMedicament::where('fkidStock', $stock->idStock)
+            ->where('quantiteRestante', '>', 0)
+            ->where('Masquer', 0)
+            ->orderBy('dateExpiration', 'asc')
+            ->orderBy('dateEntree', 'asc')
+            ->get();
+
+        $facture = Facture::find($factureId);
+        $patientId = $facture->IDPatient ?? null;
+
+        foreach ($lots as $lot) {
+            if ($quantiteRestante <= 0) {
+                break;
+            }
+
+            $quantiteAPrendre = min($quantiteRestante, $lot->quantiteRestante);
+
+            // Mettre à jour le lot
+            $lot->quantiteRestante -= $quantiteAPrendre;
+            $lot->save();
+
+            // Créer le mouvement
+            MouvementStock::create([
+                'fkidStock' => $stock->idStock,
+                'fkidMedicament' => $medicamentId,
+                'fkidLot' => $lot->idLot,
+                'typeMouvement' => 'SORTIE',
+                'quantite' => -$quantiteAPrendre,
+                'prixUnitaire' => $stock->prixVente > 0 ? $stock->prixVente : 0,
+                'montantTotal' => ($stock->prixVente > 0 ? $stock->prixVente : 0) * $quantiteAPrendre,
+                'motif' => 'Vente via facture',
+                'fkidFacture' => $factureId,
+                'fkidDetailFacture' => $detailFactureId,
+                'fkidPatient' => $patientId,
+                'fkidUser' => Auth::id(),
+                'dateMouvement' => Carbon::now(),
+                'reference' => $facture->Nfacture ?? null,
+                'notes' => null
+            ]);
+
+            $quantiteRestante -= $quantiteAPrendre;
+        }
+
+        // Si pas de lots, déduire directement du stock
+        if ($quantiteRestante > 0 && $lots->isEmpty()) {
+            MouvementStock::create([
+                'fkidStock' => $stock->idStock,
+                'fkidMedicament' => $medicamentId,
+                'fkidLot' => null,
+                'typeMouvement' => 'SORTIE',
+                'quantite' => -$quantiteRestante,
+                'prixUnitaire' => $stock->prixVente > 0 ? $stock->prixVente : 0,
+                'montantTotal' => ($stock->prixVente > 0 ? $stock->prixVente : 0) * $quantiteRestante,
+                'motif' => 'Vente via facture',
+                'fkidFacture' => $factureId,
+                'fkidDetailFacture' => $detailFactureId,
+                'fkidPatient' => $patientId,
+                'fkidUser' => Auth::id(),
+                'dateMouvement' => Carbon::now(),
+                'reference' => $facture->Nfacture ?? null,
+                'notes' => null
+            ]);
+        }
+
+        // Mettre à jour le stock
+        $stock->quantiteStock -= $quantite;
+        $stock->dateDerniereSortie = Carbon::now();
+        $stock->save();
+    }
+
+    /**
+     * Remettre le stock d'un médicament lors de la suppression d'un détail d'une facture payée
+     */
+    private function remettreStockMedicament($medicamentId, $quantite, $factureId, $detailFactureId)
+    {
+        $stock = StockMedicament::where('fkidMedicament', $medicamentId)
+            ->where('fkidCabinet', Auth::user()->fkidcabinet)
+            ->first();
+
+        if (!$stock) {
+            return; // Pas de stock à remettre
+        }
+
+        $facture = Facture::find($factureId);
+        $patientId = $facture->IDPatient ?? null;
+
+        // Récupérer les mouvements de sortie pour ce détail pour savoir quels lots ont été utilisés
+        $mouvementsSortie = MouvementStock::where('fkidDetailFacture', $detailFactureId)
+            ->where('fkidFacture', $factureId)
+            ->where('typeMouvement', 'SORTIE')
+            ->where('fkidMedicament', $medicamentId)
+            ->get();
+
+        // Remettre le stock dans les lots si possible, sinon créer un ajustement
+        foreach ($mouvementsSortie as $mouvement) {
+            if ($mouvement->fkidLot) {
+                // Remettre dans le lot d'origine si possible
+                $lot = LotMedicament::find($mouvement->fkidLot);
+                if ($lot) {
+                    $quantiteARemettre = abs($mouvement->quantite);
+                    $lot->quantiteRestante += $quantiteARemettre;
+                    $lot->save();
+                }
+            }
+
+            // Créer un mouvement d'ajustement pour annuler la sortie
+            MouvementStock::create([
+                'fkidStock' => $stock->idStock,
+                'fkidMedicament' => $medicamentId,
+                'fkidLot' => $mouvement->fkidLot,
+                'typeMouvement' => 'AJUSTEMENT',
+                'quantite' => abs($mouvement->quantite), // Quantité positive pour remettre
+                'prixUnitaire' => $mouvement->prixUnitaire,
+                'montantTotal' => $mouvement->montantTotal,
+                'motif' => 'Annulation vente - Suppression détail facture',
+                'fkidFacture' => $factureId,
+                'fkidDetailFacture' => $detailFactureId,
+                'fkidPatient' => $patientId,
+                'fkidUser' => Auth::id(),
+                'dateMouvement' => Carbon::now(),
+                'reference' => $facture->Nfacture ?? null,
+                'notes' => 'Remise de stock suite à suppression du détail'
+            ]);
+        }
+
+        // Mettre à jour le stock global
+        $stock->quantiteStock += $quantite;
+        $stock->dateDerniereEntree = Carbon::now();
+        $stock->save();
+    }
+
     public function render()
     {
-        $user = Auth::user();
-        $isDocteur = ($user->IdClasseUser ?? null) == 2;
-        $isDocteurProprietaire = ($user->IdClasseUser ?? null) == 3;
+        $isDocteur = Auth::user()->isDocteur();
+        $isDocteurProprietaire = Auth::user()->isDocteurProprietaire();
 
-        // Charger les factures seulement si nécessaire et si le patient est sélectionné
-        $factures = null;
         if ($this->selectedPatient) {
             if (!$this->factures) {
                 $this->factures = $this->getFacturesProperty();

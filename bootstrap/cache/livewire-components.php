@@ -20,6 +20,7 @@
   'ordonnance-manager' => 'App\\Http\\Livewire\\OrdonnanceManager',
   'patient-manager' => 'App\\Http\\Livewire\\PatientManager',
   'patient-search' => 'App\\Http\\Livewire\\PatientSearch',
+  'pharmacie-manager' => 'App\\Http\\Livewire\\PharmacieManager',
   'rdv-reminders' => 'App\\Http\\Livewire\\RdvReminders',
   'reglement-facture' => 'App\\Http\\Livewire\\ReglementFacture',
   'rendez-vous-manager' => 'App\\Http\\Livewire\\RendezVousManager',

@@ -186,4 +186,50 @@ class Facture extends Model
 			return count($details) > 0;
 		});
 	}
+
+	/**
+	 * Vérifier si la facture contient des médicaments (IsAct = 2)
+	 */
+	public function contientMedicaments()
+	{
+		return $this->details()->where('IsAct', 2)->exists();
+	}
+
+	/**
+	 * Vérifier si la facture contient uniquement des médicaments (pas d'actes)
+	 */
+	public function estFacturePharmacie()
+	{
+		$hasMedicaments = $this->details()->where('IsAct', 2)->exists();
+		$hasActes = $this->details()->where('IsAct', 1)->exists();
+		return $hasMedicaments && !$hasActes;
+	}
+
+	/**
+	 * Vérifier si la facture contient des actes (IsAct = 1)
+	 */
+	public function contientActes()
+	{
+		return $this->details()->where('IsAct', 1)->exists();
+	}
+
+	/**
+	 * Obtenir le type de facture basé sur IsAct
+	 * Retourne: 'pharmacie', 'actes', 'mixte', 'autre'
+	 */
+	public function getTypeFactureAttribute()
+	{
+		$hasMedicaments = $this->contientMedicaments();
+		$hasActes = $this->contientActes();
+		
+		if ($hasMedicaments && !$hasActes) {
+			return 'pharmacie';
+		} elseif ($hasActes && !$hasMedicaments) {
+			return 'actes';
+		} elseif ($hasMedicaments && $hasActes) {
+			return 'mixte';
+		}
+		
+		return 'autre';
+	}
 }

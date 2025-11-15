@@ -49,6 +49,7 @@ class AccueilPatient extends Component
     public $showCabinetMenu = false;
     public $showPatientMenu = false;
     public $showOrdonnanceModal = false;
+    public $showPharmacie = false;
 
     // NOUVELLES PROPRIÉTÉS pour les sous-sections patient - Même logique que les sections principales
     public $showConsultation = false;
@@ -94,7 +95,9 @@ class AccueilPatient extends Component
         'fermerRendezVousModal' => 'fermerRendezVousModal',
         'fermerCaisseOperationsModal' => 'fermerCaisseOperationsModal',
         'fermerDepensesModal' => 'fermerDepensesModal',
-        'fermerStatistiquesModal' => 'fermerStatistiquesModal'
+        'fermerStatistiquesModal' => 'fermerStatistiquesModal',
+        'fermerPharmacieModal' => 'fermerPharmacieModal',
+        'ouvrirFacturationDepuisPharmacie' => 'ouvrirFacturationDepuisPharmacie'
     ];
 
     public function mount()
@@ -250,6 +253,7 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->showPatientMenu = false;
         $this->showCabinetMenu = false;
         $this->action = null;
@@ -276,6 +280,7 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->showCabinetMenu = false;
         // Ne pas fermer le menu patient pour les actions du sous-menu
         // $this->showPatientMenu = false;
@@ -299,6 +304,7 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showReglement = false;
         $this->showRendezVous = false;
@@ -332,6 +338,7 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showConsultation = false;
         $this->showRendezVous = false;
@@ -347,6 +354,19 @@ class AccueilPatient extends Component
     public function fermerReglementModal()
     {
         $this->showReglement = false;
+    }
+
+    public function ouvrirFacturationDepuisPharmacie()
+    {
+        if (!$this->selectedPatient) return;
+        
+        // Fermer le modal pharmacie et ouvrir le modal de facturation
+        $this->showPharmacie = false;
+        $this->showReglement = true;
+        $this->showPatientMenu = true;
+        
+        // Émettre un événement pour indiquer que le règlement vient de l'onglet Pharmacie
+        $this->emit('reglementDepuisPharmacie');
     }
 
     public function showRendezVous()
@@ -365,6 +385,7 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showConsultation = false;
         $this->showReglement = false;
@@ -607,6 +628,41 @@ class AccueilPatient extends Component
         $this->showStatistiques = false;
     }
 
+    public function showPharmacie()
+    {
+        // Fermer les autres modals mais garder le menu patient ouvert
+        $this->showAssureurModal = false;
+        $this->showListeActesModal = false;
+        $this->showListeMedicamentsModal = false;
+        $this->showUsersModal = false;
+        $this->showMedecinsModal = false;
+        $this->showTypePaiementModal = false;
+        $this->showCreateRdvModal = false;
+        $this->showCreatePatientModal = false;
+        $this->showCaisseOperations = false;
+        $this->showDepenses = false;
+        $this->showStatistiques = false;
+        $this->showOrdonnanceModal = false;
+        $this->showConsultation = false;
+        $this->showReglement = false;
+        $this->showRendezVous = false;
+        $this->showCabinetMenu = false;
+        
+        // Garder le menu patient ouvert
+        $this->showPatientMenu = true;
+        
+        // Ouvrir le modal pharmacie
+        $this->showPharmacie = true;
+        
+        // Forcer le re-render
+        $this->dispatchBrowserEvent('pharmacie-modal-opened');
+    }
+
+    public function fermerPharmacieModal()
+    {
+        $this->showPharmacie = false;
+    }
+
     public function ouvrirMedecinsModal()
     {
         $this->showMedecinsModal = true;
@@ -652,6 +708,7 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         
         // Ouvrir le modal ordonnance
         $this->showOrdonnanceModal = true;
