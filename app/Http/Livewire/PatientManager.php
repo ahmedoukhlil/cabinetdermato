@@ -21,6 +21,7 @@ class PatientManager extends Component
     public $showModal = false;
     public $isAssured = false;
     public $searchBy = 'all'; // all, name, nni, phone
+    public $creationOnly = false; // Mode création uniquement (sans liste)
 
     // Propriétés pour le formulaire
     public $patientId;
@@ -95,10 +96,16 @@ class PatientManager extends Component
         'classerSous.min' => 'La classification doit contenir au moins 2 caractères'
     ];
 
-    public function mount()
+    public function mount($creationOnly = false)
     {
+        $this->creationOnly = $creationOnly;
         $this->resetForm();
         $this->showInactive = false;
+        
+        // Si mode création uniquement, ouvrir automatiquement le formulaire
+        if ($creationOnly) {
+            $this->openModal();
+        }
     }
 
     public function sortBy($field)
@@ -217,6 +224,11 @@ class PatientManager extends Component
 
             $this->resetForm();
             $this->closeModal();
+            
+            // Si mode création uniquement, émettre un événement pour fermer le modal parent
+            if ($this->creationOnly && !$this->patientId) {
+                $this->emit('patientCreated', $patient->ID ?? null);
+            }
         } catch (\Exception $e) {
             \Log::error('Erreur création patient : ' . $e->getMessage());
             \Log::error('Stack trace : ' . $e->getTraceAsString());
@@ -237,6 +249,17 @@ class PatientManager extends Component
         } catch (\Exception $e) {
             session()->flash('error', 'Une erreur est survenue lors de la mise à jour du statut.');
         }
+    }
+
+    protected $listeners = [
+        'openPatientCreateForm' => 'openModal',
+        'openPatientCreateModal' => 'openModal',
+        'patientCreated' => 'handlePatientCreated'
+    ];
+    
+    public function handlePatientCreated()
+    {
+        // Cette méthode peut être utilisée pour gérer les événements après création
     }
 
     public function render()

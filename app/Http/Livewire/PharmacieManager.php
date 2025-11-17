@@ -22,6 +22,9 @@ class PharmacieManager extends Component
 
     // Onglet actif
     public $activeTab = 'dashboard';
+    
+    // Mode vente uniquement (depuis gestion patient)
+    public $venteOnly = false;
 
     // Propriétés pour le stock
     public $searchStock = '';
@@ -66,6 +69,12 @@ class PharmacieManager extends Component
     public $alertesStockFaible = 0;
     public $alertesExpires = 0;
     public $alertesExpireBientot = 0;
+    
+    // Modals pour les détails des alertes
+    public $showModalRupture = false;
+    public $showModalStockFaible = false;
+    public $showModalLotsExpires = false;
+    public $showModalExpireBientot = false;
 
     protected $paginationTheme = 'bootstrap';
     
@@ -73,9 +82,21 @@ class PharmacieManager extends Component
         'patientUpdated' => 'updatePatient'
     ];
 
-    public function mount($patientId = null)
+    public function mount($patientId = null, $venteOnly = false)
     {
         $this->patientId = $patientId;
+        $this->venteOnly = $venteOnly;
+        
+        // Si mode vente uniquement, forcer l'onglet vente
+        if ($venteOnly) {
+            $this->activeTab = 'vente';
+        } else {
+            // Si on n'est pas en mode vente uniquement et que l'onglet actif est vente, rediriger vers dashboard
+            if ($this->activeTab === 'vente') {
+                $this->activeTab = 'dashboard';
+            }
+        }
+        
         $this->calculerAlertes();
     }
     
@@ -540,6 +561,7 @@ class PharmacieManager extends Component
             $totalFacture = 0;
 
             // Vérifier le stock pour tous les médicaments avant de créer la facture
+            // Utiliser la même logique que ReglementFacture pour la cohérence
             foreach ($this->panierVente as $item) {
                 $medicament = Medicament::find($item['medicamentId']);
                 if (!$medicament) {
@@ -551,7 +573,7 @@ class PharmacieManager extends Component
                     throw new \Exception('Seuls les médicaments peuvent être facturés depuis l\'onglet Pharmacie.');
                 }
 
-                // Vérifier le stock disponible
+                // Vérifier le stock disponible en utilisant la même logique centralisée
                 $stock = StockMedicament::where('fkidMedicament', $item['medicamentId'])
                     ->where('fkidCabinet', $user->fkidcabinet)
                     ->first();
@@ -561,10 +583,11 @@ class PharmacieManager extends Component
                 }
 
                 // Calculer la quantité déjà facturée mais non payée pour ce médicament
+                // Prendre en compte TOUTES les factures non payées (pas seulement celles du patient)
+                // pour une meilleure gestion du stock global
                 $quantiteDejaFacturee = Detailfacturepatient::join('facture', 'detailfacturepatient.fkidfacture', '=', 'facture.Idfacture')
                     ->where('detailfacturepatient.fkidmedicament', $item['medicamentId'])
                     ->where('detailfacturepatient.IsAct', 2)
-                    ->where('facture.IDPatient', $this->patientId)
                     ->whereRaw('(CASE WHEN facture.ISTP > 0 THEN facture.TotalfactPatient ELSE facture.TotFacture END) > (facture.TotReglPatient + COALESCE(facture.ReglementPEC, 0))')
                     ->sum('detailfacturepatient.Quantite');
 
@@ -804,6 +827,110 @@ class PharmacieManager extends Component
     {
         return Medicament::where('fkidtype', 1) // Uniquement les médicaments
             ->orderBy('LibelleMedic', 'asc')
+            ->get();
+    }
+    
+    // ========== MÉTHODES POUR LES MODALS D'ALERTES ==========
+    
+    public function ouvrirModalRupture()
+    {
+        $this->showModalRupture = true;
+    }
+    
+    public function fermerModalRupture()
+    {
+        $this->showModalRupture = false;
+    }
+    
+    public function ouvrirModalStockFaible()
+    {
+        $this->showModalStockFaible = true;
+    }
+    
+    public function fermerModalStockFaible()
+    {
+        $this->showModalStockFaible = false;
+    }
+    
+    public function ouvrirModalLotsExpires()
+    {
+        $this->showModalLotsExpires = true;
+    }
+    
+    public function fermerModalLotsExpires()
+    {
+        $this->showModalLotsExpires = false;
+    }
+    
+    public function ouvrirModalExpireBientot()
+    {
+        $this->showModalExpireBientot = true;
+    }
+    
+    public function fermerModalExpireBientot()
+    {
+        $this->showModalExpireBientot = false;
+    }
+    
+    // Propriétés calculées pour les détails
+    public function getMedicamentsRuptureProperty()
+    {
+        $cabinetId = Auth::user()->fkidcabinet;
+        return StockMedicament::with(['medicament'])
+            ->where('fkidCabinet', $cabinetId)
+            ->where('quantiteStock', '<=', 0)
+            ->where('Masquer', 0)
+            ->whereHas('medicament', function($q) {
+                $q->where('fkidtype', 1);
+            })
+            ->orderBy('quantiteStock', 'asc')
+            ->get();
+    }
+    
+    public function getMedicamentsStockFaibleProperty()
+    {
+        $cabinetId = Auth::user()->fkidcabinet;
+        return StockMedicament::with(['medicament'])
+            ->where('fkidCabinet', $cabinetId)
+            ->whereColumn('quantiteStock', '<=', 'quantiteMin')
+            ->where('quantiteStock', '>', 0)
+            ->where('Masquer', 0)
+            ->whereHas('medicament', function($q) {
+                $q->where('fkidtype', 1);
+            })
+            ->orderBy('quantiteStock', 'asc')
+            ->get();
+    }
+    
+    public function getLotsExpiresProperty()
+    {
+        $cabinetId = Auth::user()->fkidcabinet;
+        return LotMedicament::with(['stock.medicament'])
+            ->whereHas('stock', function($q) use ($cabinetId) {
+                $q->where('fkidCabinet', $cabinetId);
+            })
+            ->whereNotNull('dateExpiration')
+            ->where('dateExpiration', '<', Carbon::now())
+            ->where('quantiteRestante', '>', 0)
+            ->where('Masquer', 0)
+            ->orderBy('dateExpiration', 'asc')
+            ->get();
+    }
+    
+    public function getLotsExpireBientotProperty()
+    {
+        $cabinetId = Auth::user()->fkidcabinet;
+        $dateLimite = Carbon::now()->addDays(30);
+        return LotMedicament::with(['stock.medicament'])
+            ->whereHas('stock', function($q) use ($cabinetId) {
+                $q->where('fkidCabinet', $cabinetId);
+            })
+            ->whereNotNull('dateExpiration')
+            ->where('dateExpiration', '>=', Carbon::now())
+            ->where('dateExpiration', '<=', $dateLimite)
+            ->where('quantiteRestante', '>', 0)
+            ->where('Masquer', 0)
+            ->orderBy('dateExpiration', 'asc')
             ->get();
     }
 

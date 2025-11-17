@@ -1,4 +1,5 @@
 <div class="space-y-6 max-w-3xl mx-auto p-4">
+    @if(!$creationOnly)
     <!-- En-tête avec recherche et boutons -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
         <div class="flex-1 max-w-lg">
@@ -24,6 +25,7 @@
             </button>
         </div>
     </div>
+    @endif
 
     <!-- Messages de notification -->
     @if (session()->has('message'))
@@ -52,6 +54,7 @@
         </div>
     @endif
 
+    @if(!$creationOnly)
     <!-- Tableau des patients -->
     <div class="bg-white rounded-lg shadow overflow-hidden w-full">
         <div>
@@ -127,32 +130,40 @@
             {{ $patients->links() }}
         </div>
     </div>
+    @endif
 
-    <!-- Modal de création/édition -->
-    @if($showModal)
-    <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
-        <div class="relative p-4 w-full max-w-4xl max-h-full">
-            <!-- Modal content -->
-            <div class="relative bg-white rounded-lg shadow-sm">
-                <!-- Modal header -->
-                <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
-                    <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                        <i class="fas fa-user-plus text-blue-600"></i>
-                        <span>{{ $patientId ? 'Modifier le patient' : 'Nouveau patient' }}</span>
-                    </h3>
-                    <button type="button" 
-                            wire:click="closeModal"
-                            class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
-                        <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
-                        </svg>
-                        <span class="sr-only">Fermer</span>
-                    </button>
-                </div>
-                <!-- Modal body -->
-                <form wire:submit.prevent="save">
-                    <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-                        <div class="space-y-4 sm:space-y-6">
+    <!-- Formulaire de création/édition -->
+    @if($showModal || $creationOnly)
+        @if($creationOnly)
+        <!-- Formulaire direct (sans modal) -->
+        <form wire:submit.prevent="save">
+            <div class="space-y-4 sm:space-y-6">
+        @else
+        <!-- Modal de création/édition -->
+        <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
+            <div class="relative p-4 w-full max-w-4xl max-h-full">
+                <!-- Modal content -->
+                <div class="relative bg-white rounded-lg shadow-sm">
+                    <!-- Modal header -->
+                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-user-plus text-blue-600"></i>
+                            <span>{{ $patientId ? 'Modifier le patient' : 'Nouveau patient' }}</span>
+                        </h3>
+                        <button type="button" 
+                                wire:click="closeModal"
+                                class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
+                            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                            </svg>
+                            <span class="sr-only">Fermer</span>
+                        </button>
+                    </div>
+                    <!-- Modal body -->
+                    <form wire:submit.prevent="save">
+                        <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                            <div class="space-y-4 sm:space-y-6">
+        @endif
                             <!-- Informations personnelles -->
                             <div class="bg-gray-50 p-4 rounded-lg animate-speed-fade-in" style="animation-delay: 0.1s;">
                                 <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
@@ -259,9 +270,33 @@
                                     </label>
                                 </div>
                             </div>
+        @if($creationOnly)
+            </div>
+            <!-- Footer formulaire direct -->
+            <div class="flex items-center justify-end p-4 md:p-5 border-t border-gray-200 rounded-b gap-3">
+                <button type="button" 
+                        wire:click="$emit('patientCreated')"
+                        class="py-2.5 px-5 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100">
+                    Annuler
+                </button>
+                <button type="submit" 
+                        wire:loading.attr="disabled"
+                        wire:loading.class="opacity-50 cursor-not-allowed"
+                        class="py-2.5 px-5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300">
+                    <span wire:loading.remove wire:target="save">
+                        <i class="fas fa-save mr-2"></i>
+                        Enregistrer
+                    </span>
+                    <span wire:loading wire:target="save" class="flex items-center">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Enregistrement...
+                    </span>
+                </button>
+            </div>
+        </form>
+        @else
                         </div>
                     </div>
-                    
                     <!-- Modal footer -->
                     <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b">
                         <button type="button" 
@@ -284,9 +319,11 @@
                         </button>
                     </div>
                 </form>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+        @endif
     @endif
 
     <!-- Modal d'historique des paiements -->

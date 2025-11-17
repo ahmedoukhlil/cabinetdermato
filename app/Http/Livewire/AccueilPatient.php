@@ -30,6 +30,7 @@ class AccueilPatient extends Component
     public $showCreateRdvModal = false;
     public $showPatientListModal = false;
     public $showGestionPatientsModal = false;
+    public $showNouveauPatientModal = false;
     public $showActeModal = false;
     public $showAssureurModal = false;
     public $showCreatePatientModal = false;
@@ -50,6 +51,8 @@ class AccueilPatient extends Component
     public $showPatientMenu = false;
     public $showOrdonnanceModal = false;
     public $showPharmacie = false;
+    public $showVentePharmacie = false;
+    public $showFormulaireNouveauPatient = false;
 
     // NOUVELLES PROPRIÉTÉS pour les sous-sections patient - Même logique que les sections principales
     public $showConsultation = false;
@@ -81,8 +84,10 @@ class AccueilPatient extends Component
 
     protected $listeners = [
         'patientSelected' => 'setPatient',
+        'patientCleared' => 'clearSelectedPatient',
         'patientCreated' => 'handlePatientCreated',
         'closeCreateModal' => 'closeCreateModal',
+        'closeNouveauPatientModal' => 'closeNouveauPatientModal',
         'assureurCreated' => 'handleAssureurCreated',
         'acteCreated' => 'handleActeCreated',
         'refreshData' => 'refreshCachedData',
@@ -97,6 +102,8 @@ class AccueilPatient extends Component
         'fermerDepensesModal' => 'fermerDepensesModal',
         'fermerStatistiquesModal' => 'fermerStatistiquesModal',
         'fermerPharmacieModal' => 'fermerPharmacieModal',
+        'fermerVentePharmacieModal' => 'fermerVentePharmacieModal',
+        'patientCreated' => 'handlePatientCreated',
         'ouvrirFacturationDepuisPharmacie' => 'ouvrirFacturationDepuisPharmacie'
     ];
 
@@ -184,6 +191,7 @@ class AccueilPatient extends Component
         $this->showListeActesModal = true;
         $this->showCaisseOperations = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->emit('listeActesModalOpened');
     }
 
@@ -198,6 +206,7 @@ class AccueilPatient extends Component
         $this->showListeMedicamentsModal = true;
         $this->showCaisseOperations = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->emit('listeMedicamentsModalOpened');
     }
 
@@ -222,6 +231,7 @@ class AccueilPatient extends Component
             'showCreateModal',
             'showPatientListModal',
             'showGestionPatientsModal',
+            'showNouveauPatientModal',
             'showActeModal',
             'showAssureurModal',
             'showCreatePatientModal',
@@ -253,7 +263,6 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
-        $this->showPharmacie = false;
         $this->showPatientMenu = false;
         $this->showCabinetMenu = false;
         $this->action = null;
@@ -263,6 +272,9 @@ class AccueilPatient extends Component
         $this->showUsersModal = false;
         $this->showMedecinsModal = false;
         $this->showTypePaiementModal = false;
+        $this->showPharmacie = false;
+        $this->showVentePharmacie = false;
+        $this->showFormulaireNouveauPatient = false;
         // Ne pas fermer showOrdonnanceModal ici, il sera géré par ouvrirOrdonnanceModal
 
         // NOUVELLES SOUS-SECTIONS PATIENT - Même logique que les sections principales
@@ -280,7 +292,6 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
-        $this->showPharmacie = false;
         $this->showCabinetMenu = false;
         // Ne pas fermer le menu patient pour les actions du sous-menu
         // $this->showPatientMenu = false;
@@ -304,10 +315,10 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
-        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showReglement = false;
         $this->showRendezVous = false;
+        $this->showVentePharmacie = false;
         
         // Ouvrir le modal consultation
         $this->showConsultation = true;
@@ -338,10 +349,10 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
-        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showConsultation = false;
         $this->showRendezVous = false;
+        $this->showVentePharmacie = false;
         
         // Ouvrir le modal reglement
         $this->showReglement = true;
@@ -356,17 +367,20 @@ class AccueilPatient extends Component
         $this->showReglement = false;
     }
 
-    public function ouvrirFacturationDepuisPharmacie()
+    public function ouvrirFacturationDepuisPharmacie($factureId)
     {
-        if (!$this->selectedPatient) return;
+        // Fermer le modal de vente pharmacie
+        $this->showVentePharmacie = false;
         
-        // Fermer le modal pharmacie et ouvrir le modal de facturation
-        $this->showPharmacie = false;
+        // Ouvrir le modal de facturation
         $this->showReglement = true;
-        $this->showPatientMenu = true;
         
-        // Émettre un événement pour indiquer que le règlement vient de l'onglet Pharmacie
-        $this->emit('reglementDepuisPharmacie');
+        // Attendre que le composant ReglementFacture soit monté avant d'émettre l'événement
+        // Le composant est lazy, donc on utilise un événement browser avec un délai
+        $this->dispatchBrowserEvent('ouvrir-facture-pharmacie', ['factureId' => $factureId]);
+        
+        // Émettre aussi l'événement Livewire avec un délai pour que le composant lazy soit chargé
+        // On utilise un dispatchBrowserEvent pour déclencher l'émission après le chargement
     }
 
     public function showRendezVous()
@@ -385,10 +399,10 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
-        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showConsultation = false;
         $this->showReglement = false;
+        $this->showVentePharmacie = false;
         
         // Ouvrir le modal rendez-vous
         $this->showRendezVous = true;
@@ -430,14 +444,23 @@ class AccueilPatient extends Component
     }
 
     // Gestionnaires d'événements
-    public function handlePatientCreated($patientId)
+    public function handlePatientCreated($patientId = null)
     {
-        $patient = Patient::find($patientId);
-        if ($patient) {
-            $this->setPatient($patient);
-            $this->showCreatePatientModal = false;
-            $this->emit('patientCreated', $patientId);
+        // Fermer le modal après création
+        $this->showNouveauPatientModal = false;
+        $this->showFormulaireNouveauPatient = false;
+        
+        // Sélectionner le patient créé si un ID est fourni
+        if ($patientId) {
+            $patient = Patient::find($patientId);
+            if ($patient) {
+                $this->setPatient($patient);
+            }
+            $this->emit('patientSelected', $patientId);
         }
+        
+        // Fermer aussi l'ancien modal si ouvert
+        $this->showCreatePatientModal = false;
     }
 
     public function handleAssureurCreated()
@@ -461,6 +484,56 @@ class AccueilPatient extends Component
     public function closeGestionPatientsModal()
     {
         $this->showGestionPatientsModal = false;
+    }
+
+    public function openNouveauPatientModal()
+    {
+        $this->showNouveauPatientModal = true;
+        // Émettre un événement Livewire pour ouvrir le modal de création dans PatientManager
+        $this->emit('openPatientCreateModal');
+    }
+
+    public function closeNouveauPatientModal()
+    {
+        $this->showNouveauPatientModal = false;
+    }
+
+    public function showFormulaireNouveauPatient()
+    {
+        // Fermer les autres modals
+        $this->showNouveauPatientModal = false;
+        $this->showGestionPatientsModal = false;
+        $this->showCreateRdvModal = false;
+        $this->showAssureurModal = false;
+        $this->showListeActesModal = false;
+        $this->showListeMedicamentsModal = false;
+        $this->showUsersModal = false;
+        $this->showMedecinsModal = false;
+        $this->showTypePaiementModal = false;
+        $this->showCreateRdvModal = false;
+        $this->showCreatePatientModal = false;
+        $this->showCaisseOperations = false;
+        $this->showDepenses = false;
+        $this->showStatistiques = false;
+        $this->showPharmacie = false;
+        $this->showVentePharmacie = false;
+        $this->showOrdonnanceModal = false;
+        $this->showConsultation = false;
+        $this->showReglement = false;
+        $this->showRendezVous = false;
+        $this->showPatientMenu = false;
+        $this->showCabinetMenu = false;
+        
+        // Afficher le formulaire directement
+        $this->showFormulaireNouveauPatient = true;
+        
+        // Émettre un événement pour ouvrir le formulaire dans PatientManager
+        $this->emit('openPatientCreateForm');
+    }
+
+    public function closeFormulaireNouveauPatient()
+    {
+        $this->showFormulaireNouveauPatient = false;
     }
 
     public function showCreateRdv()
@@ -493,6 +566,7 @@ class AccueilPatient extends Component
         $this->showCreatePatientModal = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showConsultation = false;
         $this->showReglement = false;
@@ -525,6 +599,7 @@ class AccueilPatient extends Component
         $this->showCreatePatientModal = false;
         $this->showCaisseOperations = false;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showConsultation = false;
         $this->showReglement = false;
@@ -548,6 +623,7 @@ class AccueilPatient extends Component
     {
         $this->showAssureurModal = true;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
     }
 
     public function fermerAssureurModal()
@@ -589,6 +665,7 @@ class AccueilPatient extends Component
     {
         $this->showUsersModal = true;
         $this->showStatistiques = false;
+        $this->showPharmacie = false;
     }
 
     public function closeUsersModal()
@@ -609,6 +686,7 @@ class AccueilPatient extends Component
         $this->showCreatePatientModal = false;
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
+        $this->showPharmacie = false;
         $this->showOrdonnanceModal = false;
         $this->showConsultation = false;
         $this->showReglement = false;
@@ -628,9 +706,31 @@ class AccueilPatient extends Component
         $this->showStatistiques = false;
     }
 
+    public function ouvrirMedecinsModal()
+    {
+        $this->showMedecinsModal = true;
+        $this->showPharmacie = false;
+    }
+
+    public function fermerMedecinsModal()
+    {
+        $this->showMedecinsModal = false;
+    }
+
+    public function ouvrirTypePaiementModal()
+    {
+        $this->showTypePaiementModal = true;
+        $this->showPharmacie = false;
+    }
+
+    public function fermerTypePaiementModal()
+    {
+        $this->showTypePaiementModal = false;
+    }
+
     public function showPharmacie()
     {
-        // Fermer les autres modals mais garder le menu patient ouvert
+        // Fermer les autres modals
         $this->showAssureurModal = false;
         $this->showListeActesModal = false;
         $this->showListeMedicamentsModal = false;
@@ -646,10 +746,8 @@ class AccueilPatient extends Component
         $this->showConsultation = false;
         $this->showReglement = false;
         $this->showRendezVous = false;
+        $this->showPatientMenu = false;
         $this->showCabinetMenu = false;
-        
-        // Garder le menu patient ouvert
-        $this->showPatientMenu = true;
         
         // Ouvrir le modal pharmacie
         $this->showPharmacie = true;
@@ -663,24 +761,42 @@ class AccueilPatient extends Component
         $this->showPharmacie = false;
     }
 
-    public function ouvrirMedecinsModal()
+    public function showVentePharmacie()
     {
-        $this->showMedecinsModal = true;
-    }
-
-    public function fermerMedecinsModal()
-    {
+        if (!$this->selectedPatient) {
+            session()->flash('error', 'Veuillez sélectionner un patient pour effectuer une vente.');
+            return;
+        }
+        
+        // Fermer les autres modals mais garder le menu patient ouvert
+        $this->showAssureurModal = false;
+        $this->showListeActesModal = false;
+        $this->showListeMedicamentsModal = false;
+        $this->showUsersModal = false;
         $this->showMedecinsModal = false;
-    }
-
-    public function ouvrirTypePaiementModal()
-    {
-        $this->showTypePaiementModal = true;
-    }
-
-    public function fermerTypePaiementModal()
-    {
         $this->showTypePaiementModal = false;
+        $this->showCreateRdvModal = false;
+        $this->showCreatePatientModal = false;
+        $this->showCaisseOperations = false;
+        $this->showDepenses = false;
+        $this->showStatistiques = false;
+        $this->showPharmacie = false;
+        $this->showOrdonnanceModal = false;
+        $this->showConsultation = false;
+        $this->showReglement = false;
+        $this->showRendezVous = false;
+        
+        // Ouvrir le modal vente pharmacie
+        $this->showVentePharmacie = true;
+        $this->showPatientMenu = true;
+        
+        // Forcer le re-render
+        $this->dispatchBrowserEvent('vente-pharmacie-modal-opened');
+    }
+
+    public function fermerVentePharmacieModal()
+    {
+        $this->showVentePharmacie = false;
     }
 
     public function ouvrirOrdonnanceModal()
@@ -708,7 +824,7 @@ class AccueilPatient extends Component
         $this->showCaisseOperations = false;
         $this->showDepenses = false;
         $this->showStatistiques = false;
-        $this->showPharmacie = false;
+        $this->showVentePharmacie = false;
         
         // Ouvrir le modal ordonnance
         $this->showOrdonnanceModal = true;

@@ -68,7 +68,8 @@ class ReglementFacture extends Component
         'acteSelected' => 'handleActeSelected',
         'medicamentSelected' => 'handleMedicamentSelected',
         'closeModal' => 'closeAddActeForm',
-        'reglementDepuisPharmacie' => 'filtrerFacturesPharmacie'
+        'reglementDepuisPharmacie' => 'filtrerFacturesPharmacie',
+        'ouvrirFacturePharmacie' => 'ouvrirFacturePharmacie'
     ];
 
     // Flag pour indiquer que le règlement vient de l'onglet Pharmacie
@@ -132,6 +133,30 @@ class ReglementFacture extends Component
         $this->showAddActeForm = false; // Masquer le formulaire d'ajout d'actes
         $this->showAddMedicamentForm = false; // Masquer le formulaire d'ajout de médicaments
         $this->loadFactures();
+    }
+
+    /**
+     * Ouvrir une facture spécifique de pharmacie
+     * @param int|null $factureId ID de la facture à ouvrir (optionnel)
+     */
+    public function ouvrirFacturePharmacie($factureId = null)
+    {
+        $this->depuisPharmacie = true;
+        $this->activeTabInterface = 'pharmacie';
+        $this->showAddActeForm = false;
+        $this->showAddMedicamentForm = false;
+        
+        // Charger les factures
+        $this->loadFactures();
+        
+        // Si une facture ID est fournie, la sélectionner directement et ouvrir le modal
+        if ($factureId) {
+            // Sélectionner la facture directement
+            $this->selectionnerFacture($factureId);
+            
+            // Ouvrir le modal de règlement (identique pour actes et pharmacie)
+            $this->showReglementModal = true;
+        }
     }
     
     public function switchTabInterface($tab)
@@ -216,21 +241,32 @@ class ReglementFacture extends Component
         $facture = null;
         if ($this->factures) {
             $facture = $this->factures->firstWhere('Idfacture', $factureId);
-            // Si la facture est trouvée mais n'a pas les détails, les charger
-            if ($facture && !$facture->relationLoaded('details')) {
+        }
+        
+        // Toujours charger la facture avec ses détails depuis la base pour être sûr d'avoir les bonnes données
+        if (!$facture || !$facture->relationLoaded('details')) {
+            // Charger la facture avec tous ses détails depuis la base
+            $facture = Facture::with(['medecin', 'details'])->find($factureId);
+        } else {
+            // Si la facture est dans la pagination mais les détails ne sont pas chargés, les charger
+            if (!$facture->relationLoaded('details')) {
                 $facture->load('details');
             }
         }
         
-        if (!$facture) {
-            // Fallback : charger la facture si elle n'est pas dans la pagination actuelle
-            $facture = Facture::with(['medecin', 'details'])->find($factureId);
-        } elseif ($facture && !$facture->relationLoaded('details')) {
-            // Charger les détails si pas déjà chargés
-            $facture->load('details');
-        }
-        
         if ($facture) {
+            // S'assurer que les détails sont bien chargés
+            if (!$facture->relationLoaded('details')) {
+                $facture->load('details');
+            }
+            
+            // Vérifier si c'est une facture de pharmacie (uniquement des médicaments)
+            // Utiliser la collection chargée plutôt que la requête
+            $details = $facture->details;
+            $hasMedicaments = $details->where('IsAct', 2)->isNotEmpty();
+            $hasActes = $details->where('IsAct', 1)->isNotEmpty();
+            $estFacturePharmacie = $hasMedicaments && !$hasActes;
+
             $this->factureSelectionnee = [
                 'id' => $facture->Idfacture,
                 'numero' => $facture->Nfacture,
@@ -245,12 +281,19 @@ class ReglementFacture extends Component
                 'TXPEC' => $facture->TXPEC ?? 0,
                 'ISTP' => $facture->ISTP ?? 0,
                 'est_reglee' => ((($facture->ISTP > 0 ? ($facture->TotalfactPatient ?? 0) : ($facture->TotFacture ?? 0)) - ($facture->TotReglPatient ?? 0)) <= 0) && ($facture->ISTP > 0 ? (($facture->TotalPEC ?? 0) - ($facture->ReglementPEC ?? 0)) <= 0 : true),
+                'est_facture_pharmacie' => $estFacturePharmacie
             ];
-            // Si la facture est déjà réglée, on permet d'ajouter un montant positif
-            if ($this->factureSelectionnee['reste_a_payer'] >= $this->factureSelectionnee['part_patient']) {
-                $this->montantReglement = 0;
+            
+            // Pour les factures de pharmacie, pré-remplir avec le montant restant complet
+            if ($estFacturePharmacie) {
+                $this->montantReglement = $this->factureSelectionnee['reste_a_payer'];
             } else {
-                $this->montantReglement = $this->factureSelectionnee['part_patient'] - $this->factureSelectionnee['reste_a_payer'];
+                // Si la facture est déjà réglée, on permet d'ajouter un montant positif
+                if ($this->factureSelectionnee['reste_a_payer'] >= $this->factureSelectionnee['part_patient']) {
+                    $this->montantReglement = 0;
+                } else {
+                    $this->montantReglement = $this->factureSelectionnee['part_patient'] - $this->factureSelectionnee['reste_a_payer'];
+                }
             }
 
             // Détection assuré ou non
@@ -309,16 +352,47 @@ class ReglementFacture extends Component
                     ->exists();
                 
                 if (!$mouvementsExistants && $detailsMedicaments->isNotEmpty()) {
-                    // Vérifier le stock disponible pour tous les médicaments
+                    // Vérifier le stock disponible pour tous les médicaments en utilisant la méthode centralisée
                     foreach ($detailsMedicaments as $detail) {
-                        $stock = StockMedicament::where('fkidMedicament', $detail->fkidmedicament)
-                            ->where('fkidCabinet', Auth::user()->fkidcabinet)
-                            ->first();
-                        
-                        if (!$stock || $stock->quantiteStock < $detail->Quantite) {
-                            throw new \Exception('Stock insuffisant pour le médicament "' . $detail->Actes . '". Stock disponible: ' . ($stock ? number_format($stock->quantiteStock, 0) : '0') . '. Le stock ne sera déduit qu\'après le paiement complet de la facture.');
+                        try {
+                            $infoStock = $this->verifierStockDisponible(
+                                $detail->fkidmedicament,
+                                $detail->Quantite,
+                                $facture->IDPatient,
+                                $facture->Idfacture
+                            );
+                            
+                            // Vérifier que le stock disponible est suffisant
+                            if ($infoStock['disponible'] < $detail->Quantite) {
+                                throw new \Exception('Stock insuffisant pour le médicament "' . $detail->Actes . '". Stock disponible: ' . number_format($infoStock['disponible'], 0) . ' (Stock total: ' . number_format($infoStock['stock']->quantiteStock, 0) . ', Déjà facturé non payé: ' . number_format($infoStock['quantiteDejaFacturee'], 0) . '). Le stock ne sera déduit qu\'après le paiement complet de la facture.');
+                            }
+                        } catch (\Exception $e) {
+                            // Si c'est une erreur de stock, la propager
+                            if (strpos($e->getMessage(), 'Stock') !== false) {
+                                throw $e;
+                            }
+                            // Sinon, relancer l'exception
+                            throw new \Exception('Erreur lors de la vérification du stock pour "' . $detail->Actes . '": ' . $e->getMessage());
                         }
                     }
+                }
+            }
+
+            // Vérifier si c'est une facture de pharmacie (uniquement des médicaments)
+            $estFacturePharmacie = $facture->details()
+                ->where('IsAct', 2)
+                ->exists() && !$facture->details()
+                ->where('IsAct', 1)
+                ->exists();
+
+            // Pour les factures de pharmacie, le paiement doit être complet
+            if ($estFacturePharmacie) {
+                $resteAPayer = $this->factureSelectionnee['reste_a_payer'];
+                if ($this->montantReglement < $resteAPayer) {
+                    throw new \Exception('Les factures de pharmacie doivent être payées en totalité. Montant restant: ' . number_format($resteAPayer, 0) . ' MRU');
+                }
+                if ($this->montantReglement > $resteAPayer) {
+                    throw new \Exception('Le montant du règlement ne peut pas dépasser le montant restant. Montant restant: ' . number_format($resteAPayer, 0) . ' MRU');
                 }
             }
 
@@ -500,27 +574,16 @@ class ReglementFacture extends Component
 
             // Vérifier le stock avant d'ajouter à la facture (uniquement pour les médicaments)
             if ($isAct == 2) {
-                $stock = StockMedicament::where('fkidMedicament', $this->selectedMedicamentId)
-                    ->where('fkidCabinet', Auth::user()->fkidcabinet)
-                    ->first();
-
-                if (!$stock) {
-                    throw new \Exception('Ce médicament n\'est pas en stock.');
-                }
-
-                // Calculer la quantité déjà facturée mais non payée pour ce médicament
                 $patientId = is_array($this->selectedPatient) ? ($this->selectedPatient['ID'] ?? null) : ($this->selectedPatient->ID ?? null);
-                $quantiteDejaFacturee = Detailfacturepatient::join('facture', 'detailfacturepatient.fkidfacture', '=', 'facture.Idfacture')
-                    ->where('detailfacturepatient.fkidmedicament', $this->selectedMedicamentId)
-                    ->where('detailfacturepatient.IsAct', 2)
-                    ->where('facture.IDPatient', $patientId)
-                    ->whereRaw('(CASE WHEN facture.ISTP > 0 THEN facture.TotalfactPatient ELSE facture.TotFacture END) > (facture.TotReglPatient + COALESCE(facture.ReglementPEC, 0))')
-                    ->sum('detailfacturepatient.Quantite');
+                $infoStock = $this->verifierStockDisponible(
+                    $this->selectedMedicamentId,
+                    $this->quantiteMedicament,
+                    $patientId,
+                    $this->factureIdForActe
+                );
 
-                $stockDisponible = $stock->quantiteStock - $quantiteDejaFacturee;
-
-                if ($stockDisponible < $this->quantiteMedicament) {
-                    throw new \Exception('Stock insuffisant pour ce médicament. Stock disponible: ' . number_format($stockDisponible, 0) . ' (Stock total: ' . number_format($stock->quantiteStock, 0) . ', Déjà facturé non payé: ' . number_format($quantiteDejaFacturee, 0) . ')');
+                if ($infoStock['disponible'] < $this->quantiteMedicament) {
+                    throw new \Exception('Stock insuffisant pour ce médicament. Stock disponible: ' . number_format($infoStock['disponible'], 0) . ' (Stock total: ' . number_format($infoStock['stock']->quantiteStock, 0) . ', Déjà facturé non payé: ' . number_format($infoStock['quantiteDejaFacturee'], 0) . ')');
                 }
             }
 
@@ -722,6 +785,8 @@ class ReglementFacture extends Component
     public function ouvrirReglementFacture($factureId)
     {
         $this->selectionnerFacture($factureId);
+        
+        // Utiliser le même modal pour actes et pharmacie
         $this->showReglementModal = true;
     }
 
@@ -907,6 +972,201 @@ class ReglementFacture extends Component
     }
 
     /**
+     * Créer une facture de médicaments depuis un panier
+     * Cette méthode centralise la création de factures de médicaments
+     * 
+     * @param array $panierVente Tableau d'items du panier avec les clés: medicamentId, libelle, quantite, prixRef, prixFacture
+     * @param int $patientId ID du patient
+     * @param int|null $medecinId ID du médecin (optionnel)
+     * @return Facture|null La facture créée ou null en cas d'erreur
+     */
+    public function creerFactureMedicamentsDepuisPanier($panierVente, $patientId, $medecinId = null)
+    {
+        if (empty($panierVente)) {
+            throw new \Exception('Le panier est vide.');
+        }
+
+        if (!$patientId) {
+            throw new \Exception('Veuillez sélectionner un patient.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $user = Auth::user();
+            $patient = Patient::find($patientId);
+            
+            if (!$patient) {
+                throw new \Exception('Patient non trouvé.');
+            }
+
+            // Déterminer le médecin
+            if (!$medecinId) {
+                $medecinId = $user->fkidmedecin ?? 1;
+            }
+            $medecin = Medecin::find($medecinId);
+            if (!$medecin) {
+                $medecinId = 1; // Médecin par défaut
+                $medecin = Medecin::find($medecinId);
+            }
+
+            // Créer la facture vide
+            $annee = Carbon::now()->year;
+            $derniereFacture = Facture::where('anneeFacture', $annee)
+                ->where('fkidCabinet', $user->fkidcabinet)
+                ->orderBy('nordre', 'desc')
+                ->first();
+            
+            $nordre = $derniereFacture ? $derniereFacture->nordre + 1 : 1;
+            $numero = $derniereFacture ? intval(explode('-', $derniereFacture->Nfacture)[0]) + 1 : 1;
+            $nfacture = $numero . '-' . $annee;
+
+            $facture = Facture::create([
+                'Nfacture' => $nfacture,
+                'anneeFacture' => $annee,
+                'nordre' => $nordre,
+                'DtFacture' => Carbon::now(),
+                'IDPatient' => $patientId,
+                'ISTP' => 0,
+                'fkidEtsAssurance' => null,
+                'TXPEC' => 0,
+                'TotFacture' => 0,
+                'TotalPEC' => 0,
+                'TotalfactPatient' => 0,
+                'TotReglPatient' => 0,
+                'ReglementPEC' => 0,
+                'ModeReglement' => null,
+                'Areglepar' => null,
+                'DtReglement' => null,
+                'fkidbordfacture' => 0,
+                'ispayerAssureur' => 0,
+                'user' => $user->NomComplet ?? 'System',
+                'estfacturer' => 1,
+                'FkidMedecinInitiateur' => $medecinId,
+                'PartLaboratoire' => 0,
+                'MontantAffectation' => 0,
+                'Type' => 'Facture',
+                'fkidCabinet' => $user->fkidcabinet
+            ]);
+
+            $totalFacture = 0;
+
+            // Vérifier le stock pour tous les médicaments avant de créer la facture
+            foreach ($panierVente as $item) {
+                $medicament = \App\Models\Medicament::find($item['medicamentId']);
+                if (!$medicament) {
+                    throw new \Exception('Médicament non trouvé: ' . ($item['libelle'] ?? 'Inconnu'));
+                }
+
+                // Vérifier que c'est bien un médicament (fkidtype = 1)
+                if ($medicament->fkidtype != 1) {
+                    throw new \Exception('Seuls les médicaments peuvent être facturés depuis l\'onglet Pharmacie.');
+                }
+
+                // Utiliser la méthode centralisée pour vérifier le stock
+                $infoStock = $this->verifierStockDisponible(
+                    $item['medicamentId'],
+                    $item['quantite'],
+                    $patientId,
+                    null // Pas encore de facture créée
+                );
+
+                if ($infoStock['disponible'] < $item['quantite']) {
+                    throw new \Exception('Stock insuffisant pour le médicament "' . ($item['libelle'] ?? 'Inconnu') . '". Stock disponible: ' . number_format($infoStock['disponible'], 0) . ' (Stock total: ' . number_format($infoStock['stock']->quantiteStock, 0) . ', Déjà facturé non payé: ' . number_format($infoStock['quantiteDejaFacturee'], 0) . ')');
+                }
+            }
+
+            // Si toutes les vérifications passent, créer la facture et ajouter les détails
+            foreach ($panierVente as $item) {
+                $medicament = \App\Models\Medicament::find($item['medicamentId']);
+                if (!$medicament || $medicament->fkidtype != 1) {
+                    continue; // Déjà vérifié plus haut
+                }
+
+                // IsAct = 2 pour les médicaments uniquement
+                $isAct = 2;
+                $prixItem = ($item['prixFacture'] ?? $item['prixRef'] ?? 0) * $item['quantite'];
+                $totalFacture += $prixItem;
+
+                Detailfacturepatient::create([
+                    'fkidfacture' => $facture->Idfacture,
+                    'DtAjout' => Carbon::now(),
+                    'Actes' => $item['libelle'],
+                    'PrixRef' => $item['prixRef'] ?? $item['prixUnitaire'] ?? 0,
+                    'PrixFacture' => $item['prixFacture'] ?? $item['prixRef'] ?? $item['prixUnitaire'] ?? 0,
+                    'Quantite' => $item['quantite'],
+                    'fkidmedicament' => $item['medicamentId'],
+                    'IsAct' => $isAct,
+                    'fkidMedecin' => $medecinId,
+                    'fkidcabinet' => $user->fkidcabinet,
+                    'ActesArab' => 'NR',
+                    'Dents' => 'Med',
+                    'DTajout2' => Carbon::now(),
+                    'user' => $user->NomComplet ?? 'System',
+                    'DtActe' => Carbon::now()
+                ]);
+            }
+
+            // Mettre à jour le total de la facture
+            $facture->TotFacture = $totalFacture;
+            $facture->TotalfactPatient = $totalFacture;
+            $facture->save();
+
+            DB::commit();
+            return $facture;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Vérifier le stock disponible pour un médicament
+     * Prend en compte le stock total moins les quantités déjà facturées mais non payées
+     * 
+     * @param int $medicamentId ID du médicament
+     * @param int $quantiteDemandee Quantité demandée
+     * @param int|null $patientId ID du patient (optionnel, pour exclure ses factures non payées du calcul)
+     * @param int|null $factureId ID de la facture actuelle (optionnel, pour exclure cette facture du calcul)
+     * @return array ['disponible' => float, 'stock' => StockMedicament|null, 'quantiteDejaFacturee' => float]
+     * @throws \Exception Si le médicament n'est pas en stock
+     */
+    private function verifierStockDisponible($medicamentId, $quantiteDemandee, $patientId = null, $factureId = null)
+    {
+        $stock = StockMedicament::where('fkidMedicament', $medicamentId)
+            ->where('fkidCabinet', Auth::user()->fkidcabinet)
+            ->first();
+
+        if (!$stock) {
+            throw new \Exception('Ce médicament n\'est pas en stock.');
+        }
+
+        // Calculer la quantité déjà facturée mais non payée pour ce médicament
+        $query = Detailfacturepatient::join('facture', 'detailfacturepatient.fkidfacture', '=', 'facture.Idfacture')
+            ->where('detailfacturepatient.fkidmedicament', $medicamentId)
+            ->where('detailfacturepatient.IsAct', 2)
+            ->whereRaw('(CASE WHEN facture.ISTP > 0 THEN facture.TotalfactPatient ELSE facture.TotFacture END) > (facture.TotReglPatient + COALESCE(facture.ReglementPEC, 0))');
+
+        // Exclure la facture actuelle si elle est fournie (pour permettre la modification)
+        if ($factureId) {
+            $query->where('facture.Idfacture', '!=', $factureId);
+        }
+
+        // Si un patient est spécifié, on peut inclure ou exclure ses factures selon le besoin
+        // Par défaut, on inclut toutes les factures non payées de tous les patients
+        $quantiteDejaFacturee = $query->sum('detailfacturepatient.Quantite');
+
+        $stockDisponible = $stock->quantiteStock - $quantiteDejaFacturee;
+
+        return [
+            'disponible' => $stockDisponible,
+            'stock' => $stock,
+            'quantiteDejaFacturee' => $quantiteDejaFacturee
+        ];
+    }
+
+    /**
      * Déduire le stock de tous les médicaments d'une facture lors du paiement
      */
     private function deduireStockFacture($facture)
@@ -928,13 +1188,27 @@ class ReglementFacture extends Component
         }
 
         // Vérifier le stock disponible pour tous les médicaments avant de déduire
+        // Utiliser la méthode centralisée pour la cohérence
         foreach ($detailsMedicaments as $detail) {
-            $stock = StockMedicament::where('fkidMedicament', $detail->fkidmedicament)
-                ->where('fkidCabinet', Auth::user()->fkidcabinet)
-                ->first();
-
-            if (!$stock || $stock->quantiteStock < $detail->Quantite) {
-                throw new \Exception('Stock insuffisant pour le médicament "' . $detail->Actes . '". Stock disponible: ' . ($stock ? number_format($stock->quantiteStock, 0) : '0'));
+            try {
+                $infoStock = $this->verifierStockDisponible(
+                    $detail->fkidmedicament,
+                    $detail->Quantite,
+                    $facture->IDPatient,
+                    $facture->Idfacture
+                );
+                
+                // Vérifier que le stock disponible est suffisant
+                if ($infoStock['disponible'] < $detail->Quantite) {
+                    throw new \Exception('Stock insuffisant pour le médicament "' . $detail->Actes . '". Stock disponible: ' . number_format($infoStock['disponible'], 0) . ' (Stock total: ' . number_format($infoStock['stock']->quantiteStock, 0) . ', Déjà facturé non payé: ' . number_format($infoStock['quantiteDejaFacturee'], 0) . ')');
+                }
+            } catch (\Exception $e) {
+                // Si c'est une erreur de stock, la propager
+                if (strpos($e->getMessage(), 'Stock') !== false || strpos($e->getMessage(), 'stock') !== false) {
+                    throw $e;
+                }
+                // Sinon, relancer l'exception
+                throw new \Exception('Erreur lors de la vérification du stock pour "' . $detail->Actes . '": ' . $e->getMessage());
             }
         }
 
@@ -1005,8 +1279,13 @@ class ReglementFacture extends Component
             $quantiteRestante -= $quantiteAPrendre;
         }
 
-        // Si pas de lots, déduire directement du stock
-        if ($quantiteRestante > 0 && $lots->isEmpty()) {
+        // Si pas de lots ou quantité restante après épuisement des lots, déduire directement du stock
+        if ($quantiteRestante > 0) {
+            // Vérifier que le stock global est suffisant
+            if ($stock->quantiteStock < $quantite) {
+                throw new \Exception('Stock insuffisant pour ce médicament. Stock disponible: ' . number_format($stock->quantiteStock, 0) . ', Quantité demandée: ' . number_format($quantite, 0));
+            }
+            
             MouvementStock::create([
                 'fkidStock' => $stock->idStock,
                 'fkidMedicament' => $medicamentId,
@@ -1015,18 +1294,18 @@ class ReglementFacture extends Component
                 'quantite' => -$quantiteRestante,
                 'prixUnitaire' => $prixVente,
                 'montantTotal' => $prixVente * $quantiteRestante,
-                'motif' => 'Vente via facture',
+                'motif' => 'Vente via facture' . ($lots->isEmpty() ? ' (sans lot)' : ' (stock sans lot)'),
                 'fkidFacture' => $factureId,
                 'fkidDetailFacture' => $detailFactureId,
                 'fkidPatient' => $patientId,
                 'fkidUser' => Auth::id(),
                 'dateMouvement' => Carbon::now(),
                 'reference' => $facture->Nfacture ?? null,
-                'notes' => null
+                'notes' => $lots->isEmpty() ? 'Aucun lot disponible' : 'Quantité restante après épuisement des lots'
             ]);
         }
 
-        // Mettre à jour le stock
+        // Mettre à jour le stock global (déduction de la quantité totale)
         $stock->quantiteStock -= $quantite;
         $stock->dateDerniereSortie = Carbon::now();
         $stock->save();

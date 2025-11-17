@@ -228,9 +228,13 @@
                                         </tbody>
                                     </table>
                                     <div class="flex flex-row gap-2 justify-between mt-4">
+                                         @if($typeFacture !== 'pharmacie')
                                          <button wire:click.stop="openDossierMedicalModal({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2">
                                              <i class="fas fa-file-medical"></i> Dossier médical
                                          </button>
+                                         @else
+                                         <div></div>
+                                         @endif
                                          <div class="flex flex-row gap-2">
                                              <button wire:click.stop="ouvrirReglementFacture({{ $facture->Idfacture }})" class="min-w-[120px] px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-primary-dark transition-colors duration-200 flex items-center justify-center">
                                                  Payer
@@ -239,7 +243,7 @@
                                             <button wire:click.stop="openAddActeForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2">
                                                 <i class="fas fa-plus"></i> Ajouter un acte
                                             </button>
-                                            @else
+                                            @elseif($typeFacture !== 'pharmacie')
                                             <button wire:click.stop="openAddMedicamentForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors duration-200 flex items-center justify-center gap-2">
                                                 <i class="fas fa-pills"></i> Ajouter médicament
                                             </button>
@@ -318,13 +322,25 @@
                         <div class="mt-4">
                             <label for="montantReglement" class="block text-sm font-medium text-gray-700">
                                 Montant du paiement
+                                @if(isset($factureSelectionnee['est_facture_pharmacie']) && $factureSelectionnee['est_facture_pharmacie'])
+                                    <span class="text-xs text-red-600 ml-2 font-semibold">(Paiement complet obligatoire)</span>
+                                @endif
                             </label>
                             <div class="mt-1">
                                 <input type="number" step="1" wire:model="montantReglement" id="montantReglement"
-                                    class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
-                                    placeholder="Entrez un montant positif pour un paiement/acompte, négatif pour un remboursement">
+                                    @if(isset($factureSelectionnee['est_facture_pharmacie']) && $factureSelectionnee['est_facture_pharmacie'])
+                                        readonly
+                                        class="shadow-sm block w-full sm:text-sm border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                                    @else
+                                        class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                                        placeholder="Entrez un montant positif pour un paiement/acompte, négatif pour un remboursement"
+                                    @endif>
                             </div>
-                            @if(($factureSelectionnee['est_reglee'] ?? false))
+                            @if(isset($factureSelectionnee['est_facture_pharmacie']) && $factureSelectionnee['est_facture_pharmacie'])
+                                <p class="mt-2 text-sm text-red-600 font-semibold">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>Les factures de pharmacie doivent être payées en totalité. Montant restant : {{ number_format($factureSelectionnee['reste_a_payer'] ?? 0, 0) }} MRU
+                                </p>
+                            @elseif(($factureSelectionnee['est_reglee'] ?? false))
                                 <p class="mt-2 text-sm text-gray-500">
                                     Cette facture est déjà réglée. Vous pouvez ajouter un nouveau paiement ou un remboursement.
                                 </p>
@@ -373,6 +389,7 @@
         </div>
     </div>
     @endif
+
 
     <!-- Formulaire d'ajout d'acte sous la facture sélectionnée -->
     @if($showAddActeForm && $factureIdForActe)
@@ -633,4 +650,66 @@
     @endif
 </div>
 
-{{-- L'écouteur open-receipt est géré globalement dans le layout principal pour éviter les doublons --}} 
+{{-- L'écouteur open-receipt est géré globalement dans le layout principal pour éviter les doublons --}}
+
+@push('scripts')
+<script>
+    // Écouter l'événement pour sélectionner automatiquement une facture de pharmacie
+    // Note: Cet événement n'est plus utilisé car ouvrirFacturePharmacie gère maintenant directement l'ouverture
+    // Mais on le garde pour compatibilité si nécessaire
+    window.addEventListener('select-facture-pharmacie', event => {
+        const factureId = event.detail.factureId;
+        if (factureId) {
+            // Appeler directement ouvrirFacturePharmacie qui gère tout
+            @this.call('ouvrirFacturePharmacie', factureId);
+        }
+    });
+
+    // Écouter l'événement browser pour ouvrir une facture depuis la pharmacie
+    // Utiliser une fonction pour éviter les doublons
+    function setupOuvrirFacturePharmacieListener() {
+        // Supprimer l'ancien écouteur s'il existe
+        if (window.ouvrirFacturePharmacieHandler) {
+            window.removeEventListener('ouvrir-facture-pharmacie', window.ouvrirFacturePharmacieHandler);
+        }
+        
+        // Créer un nouveau handler
+        window.ouvrirFacturePharmacieHandler = function(event) {
+            const factureId = event.detail?.factureId;
+            if (factureId && @this) {
+                console.log('Événement ouvrir-facture-pharmacie reçu, factureId:', factureId);
+                // Attendre un peu pour que le composant soit complètement monté
+                setTimeout(() => {
+                    try {
+                        @this.call('ouvrirFacturePharmacie', factureId);
+                        console.log('Méthode ouvrirFacturePharmacie appelée avec factureId:', factureId);
+                    } catch (error) {
+                        console.error('Erreur lors de l\'appel de ouvrirFacturePharmacie:', error);
+                        // Réessayer après un délai plus long
+                        setTimeout(() => {
+                            @this.call('ouvrirFacturePharmacie', factureId);
+                        }, 1000);
+                    }
+                }, 500);
+            }
+        };
+        
+        window.addEventListener('ouvrir-facture-pharmacie', window.ouvrirFacturePharmacieHandler);
+    }
+
+    // Initialiser l'écouteur au chargement
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupOuvrirFacturePharmacieListener);
+    } else {
+        setupOuvrirFacturePharmacieListener();
+    }
+
+    // Réinitialiser après chaque mise à jour Livewire pour s'assurer que l'écouteur est actif
+    Livewire.hook('message.processed', (message, component) => {
+        // Vérifier si c'est le composant ReglementFacture
+        if (component && component.el && component.el.closest('[wire\\:id*="reglement"]')) {
+            setupOuvrirFacturePharmacieListener();
+        }
+    });
+</script>
+@endpush 

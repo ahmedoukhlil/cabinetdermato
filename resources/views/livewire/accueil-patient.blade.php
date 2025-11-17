@@ -913,7 +913,7 @@
     <div class="mb-3 sm:mb-4 md:mb-6 lg:mb-8 p-3 sm:p-4 md:p-6 rounded-xl bg-primary text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
         <div class="text-center md:text-left">
             <h1 class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">
-                Cabinet Dermatologie
+                Cabinet Medical Savwa
             </h1>
             <p class="text-primary-light text-sm sm:text-base md:text-lg">
                     {{ is_array(Auth::user()->typeuser) ? (Auth::user()->typeuser['Libelle'] ?? '') : (is_object(Auth::user()->typeuser) ? Auth::user()->typeuser->Libelle : Auth::user()->typeuser) }}
@@ -930,16 +930,22 @@
         <div class="w-full lg:flex-1">
             <livewire:patient-search />
         </div>
-        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4 w-full lg:w-auto">
-            <button wire:click="openGestionPatientsModal" class="nav-button w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl transition-all duration-300 ease-in-out text-sm sm:text-base md:text-lg flex items-center justify-center gap-2">
-                <span class="icon-container inline-flex items-center justify-center rounded-full p-1.5 sm:p-2 md:p-2.5 bg-white text-primary transition-all duration-300 ease-in-out">
-                    <i class="fas fa-users text-primary text-lg sm:text-xl md:text-2xl transition-all duration-300 ease-in-out"></i>
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full lg:w-auto">
+            <button wire:click="openNouveauPatientModal" class="nav-button w-full sm:w-auto sm:min-w-[140px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl transition-all duration-300 ease-in-out text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                <span class="icon-container inline-flex items-center justify-center rounded-full p-1 sm:p-1.5 bg-white text-primary transition-all duration-300 ease-in-out">
+                    <i class="fas fa-user-plus text-primary text-sm sm:text-base transition-all duration-300 ease-in-out"></i>
+                </span>
+                <span class="font-semibold transition-all duration-300 ease-in-out">Nouveau patient</span>
+            </button>
+            <button wire:click="openGestionPatientsModal" class="nav-button w-full sm:w-auto sm:min-w-[140px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl transition-all duration-300 ease-in-out text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                <span class="icon-container inline-flex items-center justify-center rounded-full p-1 sm:p-1.5 bg-white text-primary transition-all duration-300 ease-in-out">
+                    <i class="fas fa-users text-primary text-sm sm:text-base transition-all duration-300 ease-in-out"></i>
                 </span>
                 <span class="font-semibold transition-all duration-300 ease-in-out">Liste de patients</span>
             </button>
-            <button wire:click="showCreateRdv" class="nav-button w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl transition-all duration-300 ease-in-out text-sm sm:text-base md:text-lg flex items-center justify-center gap-2">
-                <span class="icon-container inline-flex items-center justify-center rounded-full p-1.5 sm:p-2 md:p-2.5 bg-white text-primary transition-all duration-300 ease-in-out">
-                    <i class="fas fa-calendar-plus text-primary text-lg sm:text-xl md:text-2xl transition-all duration-300 ease-in-out"></i>
+            <button wire:click="showCreateRdv" class="nav-button w-full sm:w-auto sm:min-w-[140px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl transition-all duration-300 ease-in-out text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                <span class="icon-container inline-flex items-center justify-center rounded-full p-1 sm:p-1.5 bg-white text-primary transition-all duration-300 ease-in-out">
+                    <i class="fas fa-calendar-plus text-primary text-sm sm:text-base transition-all duration-300 ease-in-out"></i>
                 </span>
                 <span class="font-semibold transition-all duration-300 ease-in-out">Gestion RDV</span>
             </button>
@@ -985,6 +991,14 @@
                 <span class="font-semibold transition-all duration-500 ease-out">Statistiques</span>
             </button>
             @endif
+            {{-- Gestion Stock --}}
+            <button wire:click="showPharmacie"
+                class="nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl hover:scale-105 transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform active:scale-95">
+                <span class="icon-container inline-flex items-center justify-center rounded-full p-1.5 sm:p-2 md:p-2.5 bg-white text-primary transition-all duration-500 ease-out">
+                    <i class="fas fa-prescription-bottle text-primary text-lg sm:text-xl md:text-2xl transition-all duration-500 ease-out"></i>
+                </span>
+                <span class="font-semibold transition-all duration-500 ease-out">Gestion Stock</span>
+            </button>
             {{-- Gestion du cabinet (bouton principal) --}}
             <button wire:click="toggleCabinetMenu"
                 class="nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform hover:scale-105 active:scale-95 ripple menu-button
@@ -1026,6 +1040,7 @@
                  <span class="font-semibold transition-all duration-500 ease-out">Rendez-vous</span>
              </button>
                 {{-- Ordonnances --}}
+                @if(!$isSecretaire)
                 <button wire:click="ouvrirOrdonnanceModal"
                     class="nav-button patient-nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl hover:scale-105 transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform active:scale-95 {{ !$selectedPatient ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed hover:scale-100' : '' }}"
                     @if(!$selectedPatient) disabled @endif
@@ -1035,13 +1050,16 @@
                  </span>
                  <span class="font-semibold transition-all duration-500 ease-out">Ordonnances</span>
              </button>
-                {{-- Pharmacie --}}
-                <button wire:click="showPharmacie"
-                    class="nav-button patient-nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl hover:scale-105 transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform active:scale-95">
+             @endif
+                {{-- Vente Pharmacie --}}
+                <button wire:click="showVentePharmacie"
+                    class="nav-button patient-nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl hover:scale-105 transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform active:scale-95 {{ !$selectedPatient ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed hover:scale-100' : '' }}"
+                    @if(!$selectedPatient) disabled @endif
+                    type="button">
                     <span class="icon-container inline-flex items-center justify-center rounded-full p-1.5 sm:p-2 md:p-2.5 bg-white text-primary transition-all duration-500 ease-out">
-                     <i class="fas fa-pills text-primary text-lg sm:text-xl md:text-2xl transition-all duration-500 ease-out"></i>
+                     <i class="fas fa-shopping-cart text-primary text-lg sm:text-xl md:text-2xl transition-all duration-500 ease-out"></i>
                  </span>
-                 <span class="font-semibold transition-all duration-500 ease-out">Pharmacie</span>
+                 <span class="font-semibold transition-all duration-500 ease-out">Vente Pharmacie</span>
              </button>
             </div>
          </div>
@@ -1142,6 +1160,36 @@
                                 </div>
                             @endif
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Nouveau Patient (création uniquement) --}}
+    @if($showNouveauPatientModal)
+        <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
+            <div class="relative p-4 w-full max-w-4xl max-h-full">
+                <!-- Modal content -->
+                <div class="relative bg-white rounded-lg shadow-sm">
+                    <!-- Modal header -->
+                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-user-plus text-blue-600"></i>
+                            <span>Nouveau patient</span>
+                        </h3>
+                        <button type="button" 
+                                wire:click="closeNouveauPatientModal"
+                                class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
+                            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                            </svg>
+                            <span class="sr-only">Fermer</span>
+                        </button>
+                    </div>
+                    <!-- Modal body -->
+                    <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                        <livewire:patient-manager wire:key="nouveau-patient-modal" :creationOnly="true" />
                     </div>
                 </div>
             </div>
@@ -1640,7 +1688,7 @@
         </div>
     @endif
 
-    {{-- Modal Pharmacie --}}
+    {{-- Modal Pharmacie (Gestion du stock) --}}
     @if($showPharmacie)
         <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
             <div class="relative p-4 w-full max-w-7xl max-h-full">
@@ -1649,8 +1697,8 @@
                     <!-- Modal header -->
                     <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
                         <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                            <i class="fas fa-pills text-primary"></i>
-                            <span>Gestion de la Pharmacie</span>
+                            <i class="fas fa-prescription-bottle text-primary"></i>
+                            <span>Gestion du Stock - Pharmacie</span>
                         </h3>
                         <button type="button" 
                                 wire:click="fermerPharmacieModal"
@@ -1663,7 +1711,42 @@
                     </div>
                     <!-- Modal body -->
                     <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-                        <livewire:pharmacie-manager wire:key="pharmacie-manager-{{ is_array($selectedPatient) ? ($selectedPatient['ID'] ?? 'no-patient') : ($selectedPatient->ID ?? 'no-patient') }}" :patient-id="is_array($selectedPatient) ? ($selectedPatient['ID'] ?? null) : ($selectedPatient ? $selectedPatient->ID : null)" />
+                        <livewire:pharmacie-manager wire:key="pharmacie-manager-modal" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Vente Pharmacie (depuis Gestion du patient) --}}
+    @if($showVentePharmacie && $selectedPatient)
+        <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
+            <div class="relative p-4 w-full max-w-7xl max-h-full">
+                <!-- Modal content -->
+                <div class="relative bg-white rounded-lg shadow-sm">
+                    <!-- Modal header -->
+                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-shopping-cart text-primary"></i>
+                            <span>Vente Pharmacie</span>
+                            @if($selectedPatient)
+                            <span class="text-sm font-normal text-gray-600 ml-2">
+                                - {{ is_array($selectedPatient) ? ($selectedPatient['NomPatient'] ?? $selectedPatient['Nom'] ?? 'Patient') : ($selectedPatient->NomPatient ?? $selectedPatient->Nom ?? 'Patient') }}
+                            </span>
+                            @endif
+                        </h3>
+                        <button type="button" 
+                                wire:click="fermerVentePharmacieModal"
+                                class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
+                            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                            </svg>
+                            <span class="sr-only">Fermer</span>
+                        </button>
+                    </div>
+                    <!-- Modal body -->
+                    <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                        <livewire:pharmacie-manager wire:key="vente-pharmacie-modal-{{ is_array($selectedPatient) ? ($selectedPatient['ID'] ?? '') : ($selectedPatient->ID ?? '') }}" :patientId="is_array($selectedPatient) ? ($selectedPatient['ID'] ?? null) : ($selectedPatient->ID ?? null)" :venteOnly="true" />
                     </div>
                 </div>
             </div>
@@ -3008,6 +3091,35 @@
               subtree: true
           });
       }
+
+    // Gérer l'ouverture de facture depuis la pharmacie
+    // Attendre que le composant ReglementFacture soit monté avant d'émettre l'événement
+    Livewire.hook('message.processed', (message, component) => {
+        // Vérifier si c'est le composant ReglementFacture qui vient d'être monté
+        if (component && component.el) {
+            const reglementComponent = component.el.closest('[wire\\:id*="reglement"]');
+            if (reglementComponent) {
+                // Le composant ReglementFacture est monté, vérifier s'il y a une facture en attente
+                const pendingFactureId = window.pendingFacturePharmacieId;
+                if (pendingFactureId) {
+                    setTimeout(() => {
+                        Livewire.emit('ouvrirFacturePharmacie', pendingFactureId);
+                        window.pendingFacturePharmacieId = null;
+                    }, 300);
+                }
+            }
+        }
+    });
+
+    // Écouter l'événement browser pour stocker l'ID de facture en attente
+    window.addEventListener('ouvrir-facture-pharmacie', function(event) {
+        const factureId = event.detail?.factureId;
+        if (factureId) {
+            window.pendingFacturePharmacieId = factureId;
+            // Émettre l'événement Livewire directement aussi
+            Livewire.emit('ouvrirFacturePharmacie', factureId);
+        }
+    });
 
 </script>
 @endpush

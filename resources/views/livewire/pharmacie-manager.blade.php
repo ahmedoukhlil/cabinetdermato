@@ -60,6 +60,7 @@
     @endif
 
     {{-- Onglets --}}
+    @if(!$venteOnly)
     <div class="mb-6 border-b border-gray-200">
         <nav class="flex space-x-4 overflow-x-auto">
             <button wire:click="$set('activeTab', 'dashboard')" 
@@ -74,16 +75,13 @@
                     class="px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors {{ $activeTab === 'entree' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 <i class="fas fa-arrow-down mr-2"></i>Entrées de stock
             </button>
-            <button wire:click="$set('activeTab', 'vente')" 
-                    class="px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors {{ $activeTab === 'vente' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-                <i class="fas fa-shopping-cart mr-2"></i>Vente
-            </button>
             <button wire:click="$set('activeTab', 'historique')" 
                     class="px-4 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors {{ $activeTab === 'historique' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 <i class="fas fa-history mr-2"></i>Historique
             </button>
         </nav>
     </div>
+    @endif
 
     {{-- Contenu des onglets --}}
 
@@ -139,7 +137,8 @@
             </div>
 
             {{-- Médicaments en rupture --}}
-            <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-8 border-l-6 border-red-600 hover:shadow-xl transition-shadow duration-300">
+            <button wire:click="ouvrirModalRupture" 
+                    class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-8 border-l-6 border-red-600 hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 text-left w-full">
                 <div class="flex items-center justify-between">
                     <div class="flex-1">
                         <p class="text-base font-semibold text-red-800 uppercase tracking-wide mb-3">En rupture</p>
@@ -150,13 +149,14 @@
                         <i class="fas fa-exclamation-circle text-white text-3xl"></i>
                     </div>
                 </div>
-            </div>
+            </button>
         </div>
 
         {{-- Cartes d'alertes et mouvements --}}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {{-- Stock faible --}}
-            <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl shadow-lg p-8 border-l-6 border-yellow-500 hover:shadow-xl transition-shadow duration-300">
+            <button wire:click="ouvrirModalStockFaible" 
+                    class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl shadow-lg p-8 border-l-6 border-yellow-500 hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 text-left w-full">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-xl font-bold text-yellow-900 uppercase tracking-wide">Stock faible</h3>
                     <div class="bg-yellow-500 rounded-xl p-3 shadow-md">
@@ -165,10 +165,11 @@
                 </div>
                 <p class="text-5xl font-extrabold text-yellow-700 mb-3">{{ $stats['medicamentsStockFaible'] }}</p>
                 <p class="text-base font-semibold text-yellow-800">Médicament(s) sous le seuil minimum</p>
-            </div>
+            </button>
 
             {{-- Lots expirés --}}
-            <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-8 border-l-6 border-red-600 hover:shadow-xl transition-shadow duration-300">
+            <button wire:click="ouvrirModalLotsExpires" 
+                    class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-8 border-l-6 border-red-600 hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 text-left w-full">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-xl font-bold text-red-900 uppercase tracking-wide">Lots expirés</h3>
                     <div class="bg-red-600 rounded-xl p-3 shadow-md">
@@ -177,10 +178,11 @@
                 </div>
                 <p class="text-5xl font-extrabold text-red-700 mb-3">{{ $stats['lotsExpires'] }}</p>
                 <p class="text-base font-semibold text-red-800">Lot(s) avec date d'expiration dépassée</p>
-            </div>
+            </button>
 
             {{-- Lots expirant bientôt --}}
-            <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-lg p-8 border-l-6 border-orange-500 hover:shadow-xl transition-shadow duration-300">
+            <button wire:click="ouvrirModalExpireBientot" 
+                    class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-lg p-8 border-l-6 border-orange-500 hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 text-left w-full">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-xl font-bold text-orange-900 uppercase tracking-wide">Expire bientôt</h3>
                     <div class="bg-orange-500 rounded-xl p-3 shadow-md">
@@ -189,7 +191,7 @@
                 </div>
                 <p class="text-5xl font-extrabold text-orange-700 mb-3">{{ $stats['lotsExpireBientot'] }}</p>
                 <p class="text-base font-semibold text-orange-800">Lot(s) expirant dans 30 jours</p>
-            </div>
+            </button>
         </div>
 
         {{-- Mouvements du mois --}}
@@ -461,7 +463,7 @@
     @endif
 
     {{-- ONGLET VENTE --}}
-    @if($activeTab === 'vente')
+    @if($activeTab === 'vente' && $venteOnly)
     <div>
         @if(!$patientId)
         <div class="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
@@ -626,7 +628,7 @@
                                 class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
                             Fermer
                         </button>
-                        <button wire:click="$emit('ouvrirFacturationDepuisPharmacie')" 
+                        <button wire:click="$emit('ouvrirFacturationDepuisPharmacie', {{ $factureVenteId }})" 
                                 class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark">
                             <i class="fas fa-file-invoice-dollar mr-2"></i>Voir la facture
                         </button>
@@ -731,6 +733,303 @@
             </div>
             <div class="px-4 py-3 bg-gray-50 border-t border-gray-200">
                 {{ $mouvements->links() }}
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Modal Médicaments en rupture --}}
+    @if($showModalRupture)
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-gray-500 opacity-75" wire:click="fermerModalRupture"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-red-800 flex items-center gap-2">
+                            <i class="fas fa-exclamation-circle text-red-600"></i>
+                            Médicaments en rupture de stock
+                        </h3>
+                        <button wire:click="fermerModalRupture" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Médicament</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Seuil min</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix achat</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix vente</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($this->medicamentsRupture as $stock)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {{ $stock->medicament->LibelleMedic ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-red-600 font-semibold">
+                                        {{ number_format($stock->quantiteStock, 0) }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ number_format($stock->quantiteMin, 0) }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ number_format($stock->prixAchat, 0) }} MRU
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ number_format($stock->prixVente, 0) }} MRU
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                        <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
+                                        <p>Aucun médicament en rupture</p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button wire:click="fermerModalRupture" class="w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Modal Stock faible --}}
+    @if($showModalStockFaible)
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-gray-500 opacity-75" wire:click="fermerModalStockFaible"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-yellow-800 flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+                            Médicaments en stock faible
+                        </h3>
+                        <button wire:click="fermerModalStockFaible" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Médicament</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Seuil min</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix achat</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prix vente</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($this->medicamentsStockFaible as $stock)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {{ $stock->medicament->LibelleMedic ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-yellow-600 font-semibold">
+                                        {{ number_format($stock->quantiteStock, 0) }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ number_format($stock->quantiteMin, 0) }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ number_format($stock->prixAchat, 0) }} MRU
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ number_format($stock->prixVente, 0) }} MRU
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                        <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
+                                        <p>Aucun médicament en stock faible</p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button wire:click="fermerModalStockFaible" class="w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Modal Lots expirés --}}
+    @if($showModalLotsExpires)
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-gray-500 opacity-75" wire:click="fermerModalLotsExpires"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-red-800 flex items-center gap-2">
+                            <i class="fas fa-times-circle text-red-600"></i>
+                            Lots expirés
+                        </h3>
+                        <button wire:click="fermerModalLotsExpires" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Médicament</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">N° Lot</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité restante</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date expiration</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fournisseur</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($this->lotsExpires as $lot)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {{ $lot->stock->medicament->LibelleMedic ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $lot->numeroLot ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-red-600 font-semibold">
+                                        {{ number_format($lot->quantiteRestante, 0) }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-red-600 font-semibold">
+                                        {{ $lot->dateExpiration ? \Carbon\Carbon::parse($lot->dateExpiration)->format('d/m/Y') : 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $lot->fournisseur ?? 'N/A' }}
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                        <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
+                                        <p>Aucun lot expiré</p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button wire:click="fermerModalLotsExpires" class="w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Modal Expire bientôt --}}
+    @if($showModalExpireBientot)
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-gray-500 opacity-75" wire:click="fermerModalExpireBientot"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-orange-800 flex items-center gap-2">
+                            <i class="fas fa-clock text-orange-600"></i>
+                            Lots expirant bientôt (30 jours)
+                        </h3>
+                        <button wire:click="fermerModalExpireBientot" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Médicament</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">N° Lot</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité restante</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date expiration</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jours restants</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fournisseur</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($this->lotsExpireBientot as $lot)
+                                @php
+                                    $joursRestants = $lot->dateExpiration ? \Carbon\Carbon::parse($lot->dateExpiration)->diffInDays(\Carbon\Carbon::now(), false) : null;
+                                @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {{ $lot->stock->medicament->LibelleMedic ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $lot->numeroLot ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-orange-600 font-semibold">
+                                        {{ number_format($lot->quantiteRestante, 0) }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $lot->dateExpiration ? \Carbon\Carbon::parse($lot->dateExpiration)->format('d/m/Y') : 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                        @if($joursRestants !== null)
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $joursRestants <= 7 ? 'bg-red-100 text-red-800' : ($joursRestants <= 15 ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800') }}">
+                                                {{ abs($joursRestants) }} jour(s)
+                                            </span>
+                                        @else
+                                            <span class="text-gray-400">N/A</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $lot->fournisseur ?? 'N/A' }}
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                                        <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
+                                        <p>Aucun lot n'expire bientôt</p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button wire:click="fermerModalExpireBientot" class="w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark">
+                        Fermer
+                    </button>
+                </div>
             </div>
         </div>
     </div>
