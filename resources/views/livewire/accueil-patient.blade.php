@@ -913,7 +913,7 @@
     <div class="mb-3 sm:mb-4 md:mb-6 lg:mb-8 p-3 sm:p-4 md:p-6 rounded-xl bg-primary text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
         <div class="text-center md:text-left">
             <h1 class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">
-                Cabinet Medical Savwa
+                Cabinet Dermatologie
             </h1>
             <p class="text-primary-light text-sm sm:text-base md:text-lg">
                     {{ is_array(Auth::user()->typeuser) ? (Auth::user()->typeuser['Libelle'] ?? '') : (is_object(Auth::user()->typeuser) ? Auth::user()->typeuser->Libelle : Auth::user()->typeuser) }}

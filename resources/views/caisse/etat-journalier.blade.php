@@ -115,7 +115,7 @@
         <table class="bloc-patient-table">
             <tr>
                 <td class="label">Cabinet :</td>
-                <td class="value">{{ $cabinet->Nom ?? 'Cabinet Savwa' }}</td>
+                <td class="value">{{ $cabinet->Nom ?? 'Cabinet Dermatologie' }}</td>
                 <td class="ref-cell" colspan="2">
                     <span class="ref-label">Date :</span>
                     <span class="ref-value">{{ $date->format('d/m/Y') }}</span>

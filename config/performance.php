@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Ce fichier contient les paramètres d'optimisation des performances
-    | pour l'application Cabinet Savwa
+    | pour l'application Cabinet Dermatologie
     |
     */
 

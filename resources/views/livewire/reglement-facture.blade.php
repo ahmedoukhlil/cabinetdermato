@@ -239,6 +239,15 @@
                                              <button wire:click.stop="ouvrirReglementFacture({{ $facture->Idfacture }})" class="min-w-[120px] px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-primary-dark transition-colors duration-200 flex items-center justify-center">
                                                  Payer
                                              </button>
+                                             @if($typeFacture === 'pharmacie' && $resteAPayerPatient > 0)
+                                             <button wire:click.stop="annulerFacturePharmacie({{ $facture->Idfacture }})" 
+                                                     wire:confirm="Êtes-vous sûr de vouloir annuler cette facture ? Les articles seront remis au stock."
+                                                     class="min-w-[120px] px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 flex items-center justify-center gap-2"
+                                                     title="Annuler la facture et remettre les articles au stock">
+                                                 <i class="fas fa-times-circle"></i>
+                                                 Annuler
+                                             </button>
+                                             @endif
                                             @if($activeTabInterface === 'actes')
                                             <button wire:click.stop="openAddActeForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2">
                                                 <i class="fas fa-plus"></i> Ajouter un acte

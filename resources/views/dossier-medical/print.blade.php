@@ -86,9 +86,9 @@
                     $telephone = $cabinet['Telephone'] ?? $cabinet->Telephone ?? null;
                     
                     $defaultValues = [
-                        'Cabinet Savwa', 'Cabinet Dermatologie',
-                        'Adresse de Cabinet Savwa', 'Adresse de Cabinet Dermatologie',
-                        'Téléphone de Cabinet Savwa', 'Téléphone de Cabinet Dermatologie'
+                        'Cabinet Dermatologie',
+                        'Adresse de Cabinet Dermatologie',
+                        'Téléphone de Cabinet Dermatologie'
                     ];
                     if (in_array($nomCabinet, $defaultValues)) $nomCabinet = null;
                     if (in_array($adresse, $defaultValues)) $adresse = null;

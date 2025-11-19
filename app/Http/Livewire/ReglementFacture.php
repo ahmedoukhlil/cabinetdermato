@@ -1355,14 +1355,38 @@ class ReglementFacture extends Component
                 'quantite' => abs($mouvement->quantite), // Quantité positive pour remettre
                 'prixUnitaire' => $mouvement->prixUnitaire,
                 'montantTotal' => $mouvement->montantTotal,
-                'motif' => 'Annulation vente - Suppression détail facture',
+                'motif' => 'Annulation facture pharmacie - Remise de stock',
                 'fkidFacture' => $factureId,
                 'fkidDetailFacture' => $detailFactureId,
                 'fkidPatient' => $patientId,
                 'fkidUser' => Auth::id(),
                 'dateMouvement' => Carbon::now(),
                 'reference' => $facture->Nfacture ?? null,
-                'notes' => 'Remise de stock suite à suppression du détail'
+                'notes' => 'Remise de stock suite à annulation de la facture'
+            ]);
+        }
+
+        // Si pas de mouvements trouvés (cas rare), créer un ajustement direct
+        if ($mouvementsSortie->isEmpty()) {
+            $medicament = \App\Models\Medicament::find($medicamentId);
+            $prixVente = $medicament ? ($medicament->PrixRef ?? 0) : 0;
+
+            MouvementStock::create([
+                'fkidStock' => $stock->idStock,
+                'fkidMedicament' => $medicamentId,
+                'fkidLot' => null,
+                'typeMouvement' => 'AJUSTEMENT',
+                'quantite' => $quantite,
+                'prixUnitaire' => $prixVente,
+                'montantTotal' => $prixVente * $quantite,
+                'motif' => 'Annulation facture pharmacie - Remise de stock (sans mouvement de sortie)',
+                'fkidFacture' => $factureId,
+                'fkidDetailFacture' => $detailFactureId,
+                'fkidPatient' => $patientId,
+                'fkidUser' => Auth::id(),
+                'dateMouvement' => Carbon::now(),
+                'reference' => $facture->Nfacture ?? null,
+                'notes' => 'Remise de stock suite à annulation de la facture (aucun mouvement de sortie trouvé)'
             ]);
         }
 
@@ -1370,6 +1394,60 @@ class ReglementFacture extends Component
         $stock->quantiteStock += $quantite;
         $stock->dateDerniereEntree = Carbon::now();
         $stock->save();
+    }
+
+    /**
+     * Annuler une facture de pharmacie et remettre les articles au stock
+     */
+    public function annulerFacturePharmacie($factureId)
+    {
+        try {
+            DB::beginTransaction();
+
+            $facture = Facture::find($factureId);
+            if (!$facture) {
+                throw new \Exception('Facture non trouvée.');
+            }
+
+            // Vérifier que la facture n'est pas payée (ou partiellement payée)
+            $montantTotal = $facture->ISTP > 0 ? $facture->TotalfactPatient : $facture->TotFacture;
+            $montantPaye = $facture->TotReglPatient + ($facture->ReglementPEC ?? 0);
+            
+            if ($montantPaye > 0) {
+                throw new \Exception('Impossible d\'annuler une facture qui a déjà été payée. Montant payé: ' . number_format($montantPaye, 0) . ' MRU');
+            }
+
+            // Vérifier que c'est une facture de pharmacie (uniquement des médicaments)
+            $detailsMedicaments = Detailfacturepatient::where('fkidfacture', $factureId)
+                ->where('IsAct', 2)
+                ->whereNotNull('fkidmedicament')
+                ->get();
+
+            if ($detailsMedicaments->isEmpty()) {
+                throw new \Exception('Cette facture ne contient pas de médicaments.');
+            }
+
+            // Remettre le stock pour chaque médicament
+            foreach ($detailsMedicaments as $detail) {
+                $this->remettreStockMedicament($detail->fkidmedicament, $detail->Quantite, $factureId, $detail->idDetfacture);
+            }
+
+            // Supprimer les détails de la facture
+            Detailfacturepatient::where('fkidfacture', $factureId)->delete();
+
+            // Supprimer la facture
+            $facture->delete();
+
+            // Recharger les factures
+            $this->loadFactures();
+
+            DB::commit();
+            session()->flash('message', 'Facture annulée avec succès. Les articles ont été remis au stock.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            session()->flash('error', 'Erreur lors de l\'annulation de la facture : ' . $e->getMessage());
+        }
     }
 
     public function render()

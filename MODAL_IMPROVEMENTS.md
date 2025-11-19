@@ -3,7 +3,7 @@
 
 ## 📋 Vue d'ensemble
 
-Ce projet améliore considérablement la fluidité et l'expérience utilisateur des modaux existants dans la section "Gestion du Cabinet" de l'application Cabinet Savwa.
+Ce projet améliore considérablement la fluidité et l'expérience utilisateur des modaux existants dans la section "Gestion du Cabinet" de l'application Cabinet Dermatologie.
 
 **🎯 OBJECTIF PRINCIPAL : Les modaux sont maintenant PARFAITEMENT HARMONISÉS avec le reste de l'application pour une expérience utilisateur cohérente et professionnelle.**
 

@@ -6,15 +6,78 @@
         <p class="text-gray-600">Gestion du stock de médicaments dermatologiques</p>
     </div>
 
+    {{-- Notifications Toast fixes et visibles --}}
     @if (session()->has('message'))
-        <div class="mb-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded">
-            <i class="fas fa-check-circle mr-2"></i>{{ session('message') }}
+        <div x-data="{ show: true }" 
+             x-show="show" 
+             x-init="setTimeout(() => show = false, 8000)"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 transform translate-y-2"
+             x-transition:enter-end="opacity-100 transform translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 transform translate-y-0"
+             x-transition:leave-end="opacity-0 transform translate-y-2"
+             class="fixed top-4 right-4 z-50 max-w-md w-full mx-4 bg-green-50 border-l-4 border-green-500 shadow-2xl rounded-lg p-4"
+             role="alert">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-check-circle text-green-500 text-2xl"></i>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-semibold text-green-800">
+                        Succès
+                    </p>
+                    <p class="mt-1 text-sm text-green-700">
+                        {{ session('message') }}
+                    </p>
+                </div>
+                <div class="ml-4 flex-shrink-0">
+                    <button @click="show = false" 
+                            class="inline-flex text-green-500 hover:text-green-700 focus:outline-none">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     @endif
 
     @if (session()->has('error'))
-        <div class="mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
-            <i class="fas fa-exclamation-circle mr-2"></i>{{ session('error') }}
+        <div x-data="{ show: true }" 
+             x-show="show" 
+             x-init="setTimeout(() => show = false, 15000); $nextTick(() => { window.dispatchEvent(new CustomEvent('pharmacie-error')); })"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 transform translate-y-2 scale-95"
+             x-transition:enter-end="opacity-100 transform translate-y-0 scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 transform translate-y-0 scale-100"
+             x-transition:leave-end="opacity-0 transform translate-y-2 scale-95"
+             class="fixed top-4 right-4 z-[9999] max-w-lg w-full mx-4 bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-500 shadow-2xl rounded-lg p-5 animate-pulse-once"
+             style="box-shadow: 0 20px 25px -5px rgba(220, 38, 38, 0.3), 0 10px 10px -5px rgba(220, 38, 38, 0.2);"
+             role="alert">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full bg-red-500 animate-pulse">
+                        <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                    </div>
+                </div>
+                <div class="ml-4 flex-1">
+                    <p class="text-base font-bold text-red-900 uppercase tracking-wide">
+                        ⚠️ Erreur lors de la création de la facture
+                    </p>
+                    <p class="mt-2 text-sm text-red-800 font-semibold leading-relaxed bg-white/50 p-3 rounded border border-red-200">
+                        {{ session('error') }}
+                    </p>
+                    <p class="mt-2 text-xs text-red-600 italic">
+                        Veuillez vérifier les informations et réessayer.
+                    </p>
+                </div>
+                <div class="ml-4 flex-shrink-0">
+                    <button @click="show = false" 
+                            class="inline-flex items-center justify-center w-8 h-8 rounded-full text-red-500 hover:bg-red-200 hover:text-red-700 focus:outline-none transition-colors">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -1035,3 +1098,88 @@
     </div>
     @endif
 </div>
+
+{{-- Styles et scripts pour les notifications --}}
+<style>
+    @keyframes pulse-once {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.8;
+        }
+    }
+    
+    .animate-pulse-once {
+        animation: pulse-once 2s ease-in-out;
+    }
+    
+    /* Amélioration de la visibilité des notifications d'erreur */
+    .fixed.top-4.right-4 {
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Animation de shake pour les erreurs critiques */
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    
+    .shake-once {
+        animation: shake 0.5s ease-in-out;
+    }
+</style>
+
+<script>
+    // Améliorer la visibilité des notifications d'erreur
+    document.addEventListener('DOMContentLoaded', function () {
+        // Écouter l'événement personnalisé pour les erreurs de pharmacie
+        window.addEventListener('pharmacie-error', function (event) {
+            // Faire défiler vers le haut pour voir la notification
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Ajouter une animation shake à la notification d'erreur
+            setTimeout(function() {
+                const errorNotifications = document.querySelectorAll('[role="alert"].bg-red-50');
+                errorNotifications.forEach(function(notification) {
+                    notification.classList.add('shake-once');
+                    // Faire clignoter la notification
+                    notification.style.animation = 'shake 0.5s ease-in-out, pulse-once 2s ease-in-out';
+                });
+            }, 300);
+        });
+        
+        // Écouter les événements Livewire
+        if (typeof Livewire !== 'undefined') {
+            document.addEventListener('livewire:load', function () {
+                // Ajouter une classe shake aux notifications d'erreur au chargement
+                setTimeout(function() {
+                    const errorNotifications = document.querySelectorAll('[role="alert"]');
+                    errorNotifications.forEach(function(notification) {
+                        if (notification.classList.contains('bg-red-50')) {
+                            notification.classList.add('shake-once');
+                        }
+                    });
+                }, 100);
+            });
+            
+            // Recharger les notifications après chaque mise à jour Livewire
+            document.addEventListener('livewire:update', function () {
+                setTimeout(function() {
+                    const errorNotifications = document.querySelectorAll('[role="alert"].bg-red-50');
+                    errorNotifications.forEach(function(notification) {
+                        if (!notification.classList.contains('shake-once')) {
+                            notification.classList.add('shake-once');
+                        }
+                    });
+                    
+                    // Si une notification d'erreur existe, scroller vers le haut
+                    if (errorNotifications.length > 0) {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                }, 100);
+            });
+        }
+    });
+</script>
