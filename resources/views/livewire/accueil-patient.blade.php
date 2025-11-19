@@ -3116,6 +3116,16 @@
                         window.pendingPatientIdForFactures = null;
                     }, 300);
                 }
+                
+                // Vérifier s'il y a des données de patient en attente pour ReglementFacture
+                const pendingPatientData = window.pendingPatientDataForReglement;
+                if (pendingPatientData) {
+                    setTimeout(() => {
+                        // Émettre l'événement Livewire avec les données du patient
+                        Livewire.emit('patientSelectedForReglement', pendingPatientData);
+                        window.pendingPatientDataForReglement = null;
+                    }, 300);
+                }
             }
         }
     });
@@ -3143,6 +3153,13 @@
             // Stocker l'ID du patient pour l'utiliser après l'ouverture du modal
             window.pendingPatientIdForFactures = patientId;
             
+            // Récupérer les données du patient depuis AccueilPatient pour les stocker
+            // Cela sera utilisé par le hook message.processed
+            const selectedPatient = @this.get('selectedPatient');
+            if (selectedPatient) {
+                window.pendingPatientDataForReglement = selectedPatient;
+            }
+            
             // Fermer le modal de pharmacie s'il est ouvert (au cas où)
             @this.call('fermerPharmacieModal');
             @this.set('showVentePharmacie', false);
@@ -3161,9 +3178,14 @@
                 // Vérifier si le composant est monté en cherchant l'élément
                 const reglementComponent = document.querySelector('[wire\\:id*="reglement"]');
                 if (reglementComponent) {
-                    console.log('ReglementFacture component found, emitting event');
+                    console.log('ReglementFacture component found, emitting events');
+                    // Émettre l'événement avec les données du patient
+                    if (window.pendingPatientDataForReglement) {
+                        Livewire.emit('patientSelectedForReglement', window.pendingPatientDataForReglement);
+                    }
                     Livewire.emit('ouvrirListeFacturesPharmacie', patientId);
                     window.pendingPatientIdForFactures = null;
+                    window.pendingPatientDataForReglement = null;
                 } else if (attempts < maxAttempts) {
                     // Si le composant n'est pas encore monté, réessayer
                     console.log('ReglementFacture component not found, retrying...', attempts);
@@ -3171,8 +3193,12 @@
                 } else {
                     // Dernière tentative
                     console.log('ReglementFacture component not found after max attempts, emitting anyway');
+                    if (window.pendingPatientDataForReglement) {
+                        Livewire.emit('patientSelectedForReglement', window.pendingPatientDataForReglement);
+                    }
                     Livewire.emit('ouvrirListeFacturesPharmacie', patientId);
                     window.pendingPatientIdForFactures = null;
+                    window.pendingPatientDataForReglement = null;
                 }
             };
             

@@ -416,6 +416,16 @@ class AccueilPatient extends Component
             return;
         }
         
+        // Préparer les données du patient pour l'événement
+        // Utiliser toArray() pour les modèles Eloquent pour obtenir toutes les propriétés
+        if (is_array($this->selectedPatient)) {
+            $patientData = $this->selectedPatient;
+        } elseif (is_object($this->selectedPatient) && method_exists($this->selectedPatient, 'toArray')) {
+            $patientData = $this->selectedPatient->toArray();
+        } else {
+            $patientData = (array) $this->selectedPatient;
+        }
+        
         // Marquer dans la session qu'on doit ouvrir l'onglet pharmacie
         // Cela sera lu par ReglementFacture lors de son mount()
         session()->put('ouvrir_onglet_pharmacie', true);
@@ -428,7 +438,11 @@ class AccueilPatient extends Component
         $this->showReglement = true;
         $this->showPatientMenu = true;
         
-        // Émettre un événement browser pour déclencher l'ouverture de l'onglet pharmacie dans ReglementFacture
+        // Émettre un événement Livewire direct vers ReglementFacture avec les données du patient
+        // Cela garantit que le composant lazy reçoit bien le patient
+        $this->emit('patientSelectedForReglement', $patientData);
+        
+        // Émettre aussi un événement browser pour déclencher l'ouverture de l'onglet pharmacie dans ReglementFacture
         // Le composant est lazy, donc on utilise un délai
         $this->dispatchBrowserEvent('ouvrir-factures-pharmacie', ['patientId' => $patientIdToStore]);
     }

@@ -56,7 +56,8 @@
     @endif
 
     <!-- Liste des factures -->
-    @if($factures)
+    @if($selectedPatient)
+        @if($factures && $factures->count() > 0)
     <div class="mb-6" wire:loading.class="opacity-50">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold flex items-center gap-2">
@@ -279,6 +280,19 @@
             {{ $factures->links() }}
         </div>
     </div>
+        @else
+            <!-- Message si aucune facture -->
+            <div class="mb-6 p-6 bg-gray-50 rounded-lg border border-gray-200 text-center">
+                <i class="fas fa-inbox text-gray-400 text-4xl mb-3"></i>
+                <p class="text-gray-600 text-lg font-medium">
+                    @if($activeTabInterface === 'pharmacie')
+                        Aucune facture de pharmacie trouvée pour ce patient.
+                    @else
+                        Aucune facture d'actes trouvée pour ce patient.
+                    @endif
+                </p>
+            </div>
+        @endif
     @endif
 
     <!-- Modal de règlement de facture -->
