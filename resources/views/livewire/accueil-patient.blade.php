@@ -3107,6 +3107,15 @@
                         window.pendingFacturePharmacieId = null;
                     }, 300);
                 }
+                
+                // Vérifier s'il y a un patient en attente pour ouvrir les factures de pharmacie
+                const pendingPatientId = window.pendingPatientIdForFactures;
+                if (pendingPatientId) {
+                    setTimeout(() => {
+                        Livewire.emit('ouvrirListeFacturesPharmacie', pendingPatientId);
+                        window.pendingPatientIdForFactures = null;
+                    }, 300);
+                }
             }
         }
     });
@@ -3118,6 +3127,57 @@
             window.pendingFacturePharmacieId = factureId;
             // Émettre l'événement Livewire directement aussi
             Livewire.emit('ouvrirFacturePharmacie', factureId);
+        }
+    });
+
+    // Écouter l'événement pour fermer le modal de pharmacie
+    window.addEventListener('fermer-modal-pharmacie', function(event) {
+        @this.call('fermerPharmacieModal');
+        @this.set('showVentePharmacie', false);
+    });
+
+    // Écouter l'événement pour ouvrir la liste des factures de pharmacie
+    window.addEventListener('ouvrir-factures-pharmacie', function(event) {
+        const patientId = event.detail?.patientId;
+        if (patientId) {
+            // Stocker l'ID du patient pour l'utiliser après l'ouverture du modal
+            window.pendingPatientIdForFactures = patientId;
+            
+            // Fermer le modal de pharmacie s'il est ouvert (au cas où)
+            @this.call('fermerPharmacieModal');
+            @this.set('showVentePharmacie', false);
+            
+            // Ouvrir le modal de règlement (Facture/Devis) en passant le patientId
+            // Cela garantit que le patient est sélectionné dans AccueilPatient
+            @this.call('showReglement', patientId);
+            
+            // Attendre que le composant ReglementFacture soit monté puis émettre l'événement
+            // Utiliser plusieurs tentatives pour s'assurer que le composant lazy est chargé
+            let attempts = 0;
+            const maxAttempts = 5;
+            
+            const tryEmitEvent = () => {
+                attempts++;
+                // Vérifier si le composant est monté en cherchant l'élément
+                const reglementComponent = document.querySelector('[wire\\:id*="reglement"]');
+                if (reglementComponent) {
+                    console.log('ReglementFacture component found, emitting event');
+                    Livewire.emit('ouvrirListeFacturesPharmacie', patientId);
+                    window.pendingPatientIdForFactures = null;
+                } else if (attempts < maxAttempts) {
+                    // Si le composant n'est pas encore monté, réessayer
+                    console.log('ReglementFacture component not found, retrying...', attempts);
+                    setTimeout(tryEmitEvent, 300);
+                } else {
+                    // Dernière tentative
+                    console.log('ReglementFacture component not found after max attempts, emitting anyway');
+                    Livewire.emit('ouvrirListeFacturesPharmacie', patientId);
+                    window.pendingPatientIdForFactures = null;
+                }
+            };
+            
+            // Démarrer après un délai initial
+            setTimeout(tryEmitEvent, 500);
         }
     });
 

@@ -725,6 +725,32 @@ class PharmacieManager extends Component
         $this->panierVente = [];
     }
 
+    public function ouvrirListeFacturesPharmacie()
+    {
+        // Fermer le modal de confirmation
+        $this->showFactureModal = false;
+        
+        if (!$this->patientId) {
+            session()->flash('error', 'Aucun patient sélectionné.');
+            return;
+        }
+        
+        // Émettre un événement Livewire directement vers AccueilPatient
+        // C'est plus fiable que les événements browser
+        $this->emit('ouvrirListeFacturesPharmacieDepuisVente', $this->patientId);
+        
+        // Émettre aussi un événement browser en backup pour s'assurer que ça fonctionne
+        $this->dispatchBrowserEvent('ouvrir-factures-pharmacie', [
+            'patientId' => $this->patientId
+        ]);
+        
+        // Réinitialiser
+        $this->factureVenteId = null;
+        
+        // Forcer le re-render pour s'assurer que les événements sont émis
+        $this->dispatchBrowserEvent('force-refresh');
+    }
+
     // ========== ONGLET HISTORIQUE ==========
 
     public function getMouvementsProperty()

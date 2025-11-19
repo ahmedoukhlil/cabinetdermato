@@ -24,7 +24,7 @@ class ReglementFacture extends Component
     use WithPagination;
 
     public $selectedPatient = null;
-    protected $factures;
+    public $factures = null;
     public $factureSelectionnee;
     public $montantReglement;
     public $modePaiement;
@@ -69,7 +69,8 @@ class ReglementFacture extends Component
         'medicamentSelected' => 'handleMedicamentSelected',
         'closeModal' => 'closeAddActeForm',
         'reglementDepuisPharmacie' => 'filtrerFacturesPharmacie',
-        'ouvrirFacturePharmacie' => 'ouvrirFacturePharmacie'
+        'ouvrirFacturePharmacie' => 'ouvrirFacturePharmacie',
+        'ouvrirListeFacturesPharmacie' => 'ouvrirListeFacturesPharmacie'
     ];
 
     // Flag pour indiquer que le règlement vient de l'onglet Pharmacie
@@ -170,6 +171,58 @@ class ReglementFacture extends Component
         $this->loadFactures();
     }
 
+    public function ouvrirListeFacturesPharmacie($patientId = null)
+    {
+        // Forcer l'onglet pharmacie
+        $this->activeTabInterface = 'pharmacie';
+        $this->depuisPharmacie = true;
+        
+        // Si un patientId est fourni, sélectionner/mettre à jour ce patient
+        if ($patientId) {
+            $patient = Patient::find($patientId);
+            if ($patient) {
+                // Convertir le patient en tableau si c'est un objet
+                if (is_object($patient)) {
+                    $patient = (array) $patient;
+                }
+                $this->selectedPatient = $patient;
+            }
+        }
+        
+        // S'assurer qu'un patient est sélectionné
+        if (!$this->selectedPatient) {
+            // Essayer de récupérer le patient depuis la session ou le parent
+            $patientIdFromSession = session()->get('current_patient_id');
+            if ($patientIdFromSession) {
+                $patient = Patient::find($patientIdFromSession);
+                if ($patient) {
+                    if (is_object($patient)) {
+                        $patient = (array) $patient;
+                    }
+                    $this->selectedPatient = $patient;
+                }
+            }
+        }
+        
+        // S'assurer que l'onglet pharmacie est bien actif
+        if ($this->activeTabInterface !== 'pharmacie') {
+            $this->activeTabInterface = 'pharmacie';
+        }
+        
+        // Vérifier qu'on a bien un patient avant de charger les factures
+        if ($this->selectedPatient) {
+            // Recharger les factures
+            $this->resetPage();
+            $this->loadFactures();
+        } else {
+            // Si pas de patient, essayer de charger depuis la vue
+            $this->factures = $this->getFacturesProperty();
+        }
+        
+        // Forcer le re-render pour s'assurer que l'onglet est visible
+        $this->dispatchBrowserEvent('onglet-pharmacie-active');
+    }
+
     public function mount($selectedPatient = null)
     {
         $this->showMedecinModal = false;
@@ -192,9 +245,42 @@ class ReglementFacture extends Component
                 $selectedPatient = (array) $selectedPatient;
             }
             $this->selectedPatient = $selectedPatient;
-            // Ne pas charger les factures immédiatement, elles seront chargées lors du render
-            // $this->loadFactures();
         }
+        
+        // Si on vient de la pharmacie (depuisPharmacie est défini), basculer vers l'onglet pharmacie
+        // Vérifier si on vient de la pharmacie via la session ou un paramètre
+        if (session()->has('ouvrir_onglet_pharmacie') || request()->has('pharmacie')) {
+            $this->activeTabInterface = 'pharmacie';
+            $this->depuisPharmacie = true;
+            session()->forget('ouvrir_onglet_pharmacie');
+            
+            // Si on a un patientId dans la session, s'assurer qu'il est bien défini
+            $patientIdFromSession = session()->get('current_patient_id');
+            if ($patientIdFromSession) {
+                // Si on n'a pas encore de patient ou si c'est un autre patient, le charger
+                $currentPatientId = $this->selectedPatient ? (is_array($this->selectedPatient) ? ($this->selectedPatient['ID'] ?? null) : ($this->selectedPatient->ID ?? null)) : null;
+                if (!$currentPatientId || $currentPatientId != $patientIdFromSession) {
+                    $patient = Patient::find($patientIdFromSession);
+                    if ($patient) {
+                        if (is_object($patient)) {
+                            $patient = (array) $patient;
+                        }
+                        $this->selectedPatient = $patient;
+                    }
+                }
+            }
+            
+            // Charger les factures si on a un patient
+            if ($this->selectedPatient) {
+                $this->loadFactures();
+            }
+        } else {
+            // Si on a un patient mais qu'on ne vient pas de la pharmacie, charger quand même les factures
+            if ($this->selectedPatient) {
+                $this->loadFactures();
+            }
+        }
+        
         // Ne pas charger les factures en attente au mount (non utilisé dans le modal)
         // $this->loadFacturesEnAttente();
     }
@@ -204,6 +290,21 @@ class ReglementFacture extends Component
         $this->showMedecinModal = false;
         $this->selectedPatient = $patient;
         $this->loadFactures();
+    }
+
+    public function updatedSelectedPatient()
+    {
+        // Quand le patient change (notamment pour les composants lazy), charger les factures
+        if ($this->selectedPatient) {
+            // Si on vient de la pharmacie, s'assurer que l'onglet est sur pharmacie
+            if (session()->has('ouvrir_onglet_pharmacie') || $this->depuisPharmacie) {
+                $this->activeTabInterface = 'pharmacie';
+                $this->depuisPharmacie = true;
+            }
+            $this->loadFactures();
+        } else {
+            $this->factures = null;
+        }
     }
 
     public function handleActeSelected($id, $prixReference)
@@ -219,9 +320,10 @@ class ReglementFacture extends Component
             $patientId = is_array($this->selectedPatient) ? ($this->selectedPatient['ID'] ?? null) : ($this->selectedPatient->ID ?? null);
             // Invalider le cache pour toutes les pages de ce patient
             if ($patientId) {
-                // Invalider toutes les pages possibles (on peut optimiser en gardant trace des pages)
-                for ($page = 1; $page <= 10; $page++) {
-                    Cache::forget('factures_patient_' . $patientId . '_page_' . $page);
+                // Invalider toutes les pages possibles pour tous les onglets
+                for ($page = 1; $page <= 20; $page++) {
+                    Cache::forget('factures_patient_' . $patientId . '_page_' . $page . '_tab_pharmacie');
+                    Cache::forget('factures_patient_' . $patientId . '_page_' . $page . '_tab_actes');
                 }
             }
             $this->factures = $this->getFacturesProperty();
@@ -1426,10 +1528,38 @@ class ReglementFacture extends Component
             \App\Models\MouvementStock::where('fkidFacture', $factureId)
                 ->update(['fkidFacture' => null, 'fkidDetailFacture' => null]);
 
+            // Récupérer l'ID du patient avant de supprimer la facture (pour invalider le cache)
+            $patientId = $facture->IDPatient;
+
             // Supprimer la facture
             $facture->delete();
 
+            // Invalider le cache des factures pour ce patient
+            if ($patientId) {
+                // Invalider toutes les pages possibles pour ce patient
+                for ($page = 1; $page <= 20; $page++) {
+                    Cache::forget('factures_patient_' . $patientId . '_page_' . $page . '_tab_pharmacie');
+                    Cache::forget('factures_patient_' . $patientId . '_page_' . $page . '_tab_actes');
+                }
+            }
+
+            // Désélectionner la facture si elle était sélectionnée
+            if ($this->factureSelectionnee) {
+                // Vérifier si c'est un tableau ou un objet
+                $factureSelectionneeId = is_array($this->factureSelectionnee) 
+                    ? ($this->factureSelectionnee['id'] ?? null)
+                    : ($this->factureSelectionnee->Idfacture ?? null);
+                
+                if ($factureSelectionneeId == $factureId) {
+                    $this->factureSelectionnee = null;
+                }
+            }
+
+            // Fermer le modal de règlement si ouvert
+            $this->showReglementModal = false;
+
             // Recharger les factures
+            $this->resetPage();
             $this->loadFactures();
 
             DB::commit();

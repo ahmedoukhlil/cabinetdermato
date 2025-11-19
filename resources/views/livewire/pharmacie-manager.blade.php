@@ -721,9 +721,9 @@
                                 class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
                             Fermer
                         </button>
-                        <button wire:click="$emit('ouvrirFacturationDepuisPharmacie', {{ $factureVenteId }})" 
+                        <button wire:click="ouvrirListeFacturesPharmacie" 
                                 class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark">
-                            <i class="fas fa-file-invoice-dollar mr-2"></i>Voir la facture
+                            <i class="fas fa-file-invoice-dollar mr-2"></i>Voir les factures
                         </button>
                     </div>
                 </div>

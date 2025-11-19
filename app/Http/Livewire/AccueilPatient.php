@@ -104,7 +104,8 @@ class AccueilPatient extends Component
         'fermerPharmacieModal' => 'fermerPharmacieModal',
         'fermerVentePharmacieModal' => 'fermerVentePharmacieModal',
         'patientCreated' => 'handlePatientCreated',
-        'ouvrirFacturationDepuisPharmacie' => 'ouvrirFacturationDepuisPharmacie'
+        'ouvrirFacturationDepuisPharmacie' => 'ouvrirFacturationDepuisPharmacie',
+        'ouvrirListeFacturesPharmacieDepuisVente' => 'ouvrirListeFacturesPharmacieDepuisVente'
     ];
 
     public function mount()
@@ -333,9 +334,21 @@ class AccueilPatient extends Component
         $this->showConsultation = false;
     }
 
-    public function showReglement()
+    public function showReglement($patientId = null)
     {
-        if (!$this->selectedPatient) return;
+        // Si un patientId est fourni, sélectionner ce patient
+        if ($patientId && (!$this->selectedPatient || (is_array($this->selectedPatient) ? ($this->selectedPatient['ID'] ?? null) : ($this->selectedPatient->ID ?? null)) != $patientId)) {
+            $patient = Patient::find($patientId);
+            if ($patient) {
+                $this->setPatient($patient);
+            }
+        }
+        
+        // Vérifier qu'un patient est sélectionné
+        if (!$this->selectedPatient) {
+            session()->flash('error', 'Veuillez sélectionner un patient pour voir ses factures.');
+            return;
+        }
         
         // Fermer les autres modals mais garder le menu patient ouvert
         $this->showAssureurModal = false;
@@ -381,6 +394,43 @@ class AccueilPatient extends Component
         
         // Émettre aussi l'événement Livewire avec un délai pour que le composant lazy soit chargé
         // On utilise un dispatchBrowserEvent pour déclencher l'émission après le chargement
+    }
+
+    public function ouvrirListeFacturesPharmacieDepuisVente($patientId)
+    {
+        // Fermer le modal de vente pharmacie
+        $this->showVentePharmacie = false;
+        $this->showPharmacie = false;
+        
+        // Sélectionner le patient si fourni
+        if ($patientId) {
+            $patient = Patient::find($patientId);
+            if ($patient) {
+                $this->setPatient($patient);
+            }
+        }
+        
+        // Vérifier qu'un patient est sélectionné
+        if (!$this->selectedPatient) {
+            session()->flash('error', 'Veuillez sélectionner un patient pour voir ses factures.');
+            return;
+        }
+        
+        // Marquer dans la session qu'on doit ouvrir l'onglet pharmacie
+        // Cela sera lu par ReglementFacture lors de son mount()
+        session()->put('ouvrir_onglet_pharmacie', true);
+        
+        // Stocker aussi l'ID du patient dans la session pour que ReglementFacture puisse le récupérer
+        $patientIdToStore = is_array($this->selectedPatient) ? ($this->selectedPatient['ID'] ?? $patientId) : ($this->selectedPatient->ID ?? $patientId);
+        session()->put('current_patient_id', $patientIdToStore);
+        
+        // Ouvrir le modal de règlement
+        $this->showReglement = true;
+        $this->showPatientMenu = true;
+        
+        // Émettre un événement browser pour déclencher l'ouverture de l'onglet pharmacie dans ReglementFacture
+        // Le composant est lazy, donc on utilise un délai
+        $this->dispatchBrowserEvent('ouvrir-factures-pharmacie', ['patientId' => $patientIdToStore]);
     }
 
     public function showRendezVous()
