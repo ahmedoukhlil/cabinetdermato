@@ -37,6 +37,7 @@ class PharmacieManager extends Component
     public $entreeLibelleMedic = '';
     public $entreeQuantite = 1;
     public $entreePrixAchat = 0;
+    public $entreePrixVente = 0;
     public $entreeQuantiteMin = 0; // Seuil minimum
     public $entreeNumeroLot = '';
     public $entreeDateExpiration = null;
@@ -87,6 +88,11 @@ class PharmacieManager extends Component
         $this->patientId = $patientId;
         $this->venteOnly = $venteOnly;
         
+        // Initialiser toutes les propriétés pour éviter les erreurs de corruption
+        if (!isset($this->entreePrixVente)) {
+            $this->entreePrixVente = 0;
+        }
+        
         // Si mode vente uniquement, forcer l'onglet vente
         if ($venteOnly) {
             $this->activeTab = 'vente';
@@ -125,6 +131,37 @@ class PharmacieManager extends Component
     }
 
     // ========== ONGLET STOCK ACTUEL ==========
+
+    /**
+     * Calculer le stock disponible réel pour un médicament
+     * (stock total - quantités déjà facturées non payées dont le stock n'a pas été déduit)
+     */
+    private function calculerStockDisponible($medicamentId)
+    {
+        $stock = StockMedicament::where('fkidMedicament', $medicamentId)
+            ->where('fkidCabinet', Auth::user()->fkidcabinet)
+            ->first();
+
+        if (!$stock) {
+            return 0;
+        }
+
+        // Calculer la quantité déjà facturée mais non payée ET dont le stock n'a pas encore été déduit
+        $quantiteDejaFacturee = Detailfacturepatient::join('facture', 'detailfacturepatient.fkidfacture', '=', 'facture.Idfacture')
+            ->where('detailfacturepatient.fkidmedicament', $medicamentId)
+            ->where('detailfacturepatient.IsAct', 2)
+            ->whereRaw('(CASE WHEN facture.ISTP > 0 THEN facture.TotalfactPatient ELSE facture.TotFacture END) > (facture.TotReglPatient + COALESCE(facture.ReglementPEC, 0))')
+            ->whereNotExists(function($query) {
+                $query->select(DB::raw(1))
+                    ->from('mouvements_stock')
+                    ->whereColumn('mouvements_stock.fkidFacture', 'facture.Idfacture')
+                    ->whereColumn('mouvements_stock.fkidMedicament', 'detailfacturepatient.fkidmedicament')
+                    ->where('mouvements_stock.typeMouvement', 'SORTIE');
+            })
+            ->sum('detailfacturepatient.Quantite');
+
+        return max(0, $stock->quantiteStock - $quantiteDejaFacturee);
+    }
 
     public function getStocksProperty()
     {
@@ -190,6 +227,7 @@ class PharmacieManager extends Component
         $this->entreeLibelleMedic = '';
         $this->entreeQuantite = 1;
         $this->entreePrixAchat = 0;
+        $this->entreePrixVente = 0;
         $this->entreeQuantiteMin = 0;
         $this->entreeNumeroLot = '';
         $this->entreeDateExpiration = null;
@@ -213,6 +251,18 @@ class PharmacieManager extends Component
             $this->entreeShowMedicamentResults = false;
             $this->entreeMedicamentId = null;
             $this->entreeLibelleMedic = '';
+            $this->entreePrixVente = 0;
+        }
+    }
+    
+    public function updatedEntreeMedicamentId()
+    {
+        // Mettre à jour le prix de vente quand un médicament est sélectionné
+        if ($this->entreeMedicamentId) {
+            $medicament = Medicament::find($this->entreeMedicamentId);
+            if ($medicament) {
+                $this->entreePrixVente = $medicament->PrixRef ?? 0;
+            }
         }
     }
 
@@ -274,6 +324,9 @@ class PharmacieManager extends Component
                 $this->entreeSearchMedicament = $medicament->LibelleMedic;
                 $this->entreeMedicamentsResults = [];
                 $this->entreeShowMedicamentResults = false;
+                
+                // Pré-remplir le prix de vente avec le PrixRef du médicament (toujours, même si 0)
+                $this->entreePrixVente = $medicament->PrixRef ?? 0;
             } else {
                 session()->flash('error', 'Médicament non trouvé ou invalide.');
             }
@@ -293,11 +346,13 @@ class PharmacieManager extends Component
             'entreeMedicamentId' => 'required|integer|exists:medicaments,IDMedic',
             'entreeQuantite' => 'required|integer|min:1',
             'entreePrixAchat' => 'required|integer|min:0',
+            'entreePrixVente' => 'required|integer|min:0',
             'entreeQuantiteMin' => 'required|integer|min:0',
         ], [
             'entreeMedicamentId.required' => 'Veuillez sélectionner un médicament',
             'entreeQuantite.required' => 'La quantité est requise',
             'entreePrixAchat.required' => 'Le prix d\'achat est requis',
+            'entreePrixVente.required' => 'Le prix de vente est requis',
             'entreeQuantiteMin.required' => 'Le seuil minimum est requis',
         ]);
 
@@ -315,7 +370,7 @@ class PharmacieManager extends Component
                     'quantiteStock' => 0,
                     'quantiteMin' => $this->entreeQuantiteMin,
                     'prixAchat' => $this->entreePrixAchat,
-                    'prixVente' => Medicament::find($this->entreeMedicamentId)->PrixRef ?? 0,
+                    'prixVente' => $this->entreePrixVente,
                     'Masquer' => 0
                 ]
             );
@@ -348,6 +403,7 @@ class PharmacieManager extends Component
             $stock->update([
                 'quantiteStock' => $stock->quantiteStock + $this->entreeQuantite,
                 'prixAchat' => $nouveauPrixAchat,
+                'prixVente' => $this->entreePrixVente, // Mettre à jour le prix de vente
                 'quantiteMin' => $this->entreeQuantiteMin, // Mettre à jour le seuil minimum
                 'dateDerniereEntree' => Carbon::now()
             ]);
@@ -376,15 +432,17 @@ class PharmacieManager extends Component
 
     // ========== ONGLET VENTE ==========
 
-    public function ajouterAuPanierVente($medicamentId, $quantite = null)
+    public function ajouterAuPanierVente($medicamentId)
     {
         if (!$this->patientId) {
             session()->flash('error', 'Veuillez sélectionner un patient pour effectuer une vente.');
             return;
         }
 
-        // Utiliser la quantité depuis quantiteVente si disponible, sinon utiliser le paramètre ou 1
-        $quantiteFinale = $quantite ?? ($this->quantiteVente[$medicamentId] ?? 1);
+        // Lire la quantité depuis la propriété quantiteVente
+        $quantiteFinale = isset($this->quantiteVente[$medicamentId]) && $this->quantiteVente[$medicamentId] > 0 
+            ? (int)$this->quantiteVente[$medicamentId] 
+            : 1;
         
         if ($quantiteFinale <= 0) {
             session()->flash('error', 'La quantité doit être supérieure à 0.');
@@ -400,8 +458,11 @@ class PharmacieManager extends Component
             return;
         }
 
-        if ($stock->quantiteStock < $quantiteFinale) {
-            session()->flash('error', 'Stock insuffisant. Stock disponible: ' . number_format($stock->quantiteStock, 0));
+        // Calculer le stock disponible réel
+        $stockDisponible = $this->calculerStockDisponible($medicamentId);
+        
+        if ($stockDisponible < $quantiteFinale) {
+            session()->flash('error', 'Stock insuffisant. Stock disponible: ' . number_format($stockDisponible, 0) . ' (Stock total: ' . number_format($stock->quantiteStock, 0) . ')');
             return;
         }
 
@@ -427,8 +488,9 @@ class PharmacieManager extends Component
         
         if ($index !== false) {
             $nouvelleQuantite = $this->panierVente[$index]['quantite'] + $quantiteFinale;
-            if ($nouvelleQuantite > $stock->quantiteStock) {
-                session()->flash('error', 'Quantité totale dépasse le stock disponible.');
+            $stockDisponible = $this->calculerStockDisponible($medicamentId);
+            if ($nouvelleQuantite > $stockDisponible) {
+                session()->flash('error', 'Quantité totale dépasse le stock disponible (' . number_format($stockDisponible, 0) . ').');
                 return;
             }
             $this->panierVente[$index]['quantite'] = $nouvelleQuantite;
@@ -441,7 +503,7 @@ class PharmacieManager extends Component
                 'prixRef' => $prixRef,
                 'prixFacture' => $prixFacture,
                 'montant' => $prixFacture * $quantiteFinale,
-                'stockDisponible' => $stock->quantiteStock
+                'stockDisponible' => $this->calculerStockDisponible($medicamentId)
             ];
         }
 
@@ -513,16 +575,8 @@ class PharmacieManager extends Component
                 throw new \Exception('Patient non trouvé.');
             }
 
-            // Créer la facture vide
-            $annee = Carbon::now()->year;
-            $derniereFacture = Facture::where('anneeFacture', $annee)
-                ->where('fkidCabinet', $user->fkidcabinet)
-                ->orderBy('nordre', 'desc')
-                ->first();
-            
-            $nordre = $derniereFacture ? $derniereFacture->nordre + 1 : 1;
-            $numero = $derniereFacture ? intval(explode('-', $derniereFacture->Nfacture)[0]) + 1 : 1;
-            $nfacture = $numero . '-' . $annee;
+            // Utiliser la méthode centralisée pour générer le numéro de facture
+            $numeroFacture = Facture::genererNumeroFacture($user->fkidcabinet);
 
             $medecinId = $user->fkidmedecin ?? 1;
             $medecin = Medecin::find($medecinId);
@@ -531,9 +585,9 @@ class PharmacieManager extends Component
             }
 
             $facture = Facture::create([
-                'Nfacture' => $nfacture,
-                'anneeFacture' => $annee,
-                'nordre' => $nordre,
+                'Nfacture' => $numeroFacture['Nfacture'],
+                'anneeFacture' => $numeroFacture['anneeFacture'],
+                'nordre' => $numeroFacture['nordre'],
                 'DtFacture' => Carbon::now(),
                 'IDPatient' => $this->patientId,
                 'ISTP' => 0,
@@ -1079,8 +1133,13 @@ class PharmacieManager extends Component
                 $this->remettreStockMedicament($detail->fkidmedicament, $detail->Quantite, $factureId, $detail->idDetfacture);
             }
 
-            // Supprimer les détails de la facture
-            Detailfacturepatient::where('fkidfacture', $factureId)->delete();
+            // Supprimer tous les détails de la facture (tous les types, pas seulement les médicaments)
+            $detailsSupprimes = Detailfacturepatient::where('fkidfacture', $factureId)->delete();
+
+            // Supprimer ou mettre à jour les mouvements de stock liés à cette facture
+            // On met à jour les références plutôt que de supprimer pour garder l'historique
+            \App\Models\MouvementStock::where('fkidFacture', $factureId)
+                ->update(['fkidFacture' => null, 'fkidDetailFacture' => null]);
 
             // Supprimer la facture
             $facture->delete();

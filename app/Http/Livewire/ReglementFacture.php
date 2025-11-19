@@ -933,19 +933,13 @@ class ReglementFacture extends Component
                 $medecinId = $user->fkidmedecin;
             }
 
-            $annee = Carbon::now()->year;
-            $derniereFacture = Facture::where('anneeFacture', $annee)
-                                ->orderBy('Nfacture', 'desc')
-                                ->first();
-            
-            $numero = $derniereFacture ? intval(explode('-', $derniereFacture->Nfacture)[0]) + 1 : 1;
-            $nfacture = $numero . '-' . $annee;
-            $nordre = (Facture::where('anneeFacture', $annee)->max('nordre') ?? 0) + 1;
+            // Utiliser la méthode centralisée pour générer le numéro de facture
+            $numeroFacture = Facture::genererNumeroFacture($user->fkidcabinet);
 
             $facture = Facture::create([
-                'Nfacture' => $nfacture,
-                'anneeFacture' => $annee,
-                'nordre' => $nordre,
+                'Nfacture' => $numeroFacture['Nfacture'],
+                'anneeFacture' => $numeroFacture['anneeFacture'],
+                'nordre' => $numeroFacture['nordre'],
                 'DtFacture' => Carbon::now(),
                 'IDPatient' => $this->selectedPatient['ID'],
                 'ISTP' => 0,
@@ -1010,21 +1004,13 @@ class ReglementFacture extends Component
                 $medecin = Medecin::find($medecinId);
             }
 
-            // Créer la facture vide
-            $annee = Carbon::now()->year;
-            $derniereFacture = Facture::where('anneeFacture', $annee)
-                ->where('fkidCabinet', $user->fkidcabinet)
-                ->orderBy('nordre', 'desc')
-                ->first();
-            
-            $nordre = $derniereFacture ? $derniereFacture->nordre + 1 : 1;
-            $numero = $derniereFacture ? intval(explode('-', $derniereFacture->Nfacture)[0]) + 1 : 1;
-            $nfacture = $numero . '-' . $annee;
+            // Utiliser la méthode centralisée pour générer le numéro de facture
+            $numeroFacture = Facture::genererNumeroFacture($user->fkidcabinet);
 
             $facture = Facture::create([
-                'Nfacture' => $nfacture,
-                'anneeFacture' => $annee,
-                'nordre' => $nordre,
+                'Nfacture' => $numeroFacture['Nfacture'],
+                'anneeFacture' => $numeroFacture['anneeFacture'],
+                'nordre' => $numeroFacture['nordre'],
                 'DtFacture' => Carbon::now(),
                 'IDPatient' => $patientId,
                 'ISTP' => 0,
@@ -1432,8 +1418,13 @@ class ReglementFacture extends Component
                 $this->remettreStockMedicament($detail->fkidmedicament, $detail->Quantite, $factureId, $detail->idDetfacture);
             }
 
-            // Supprimer les détails de la facture
-            Detailfacturepatient::where('fkidfacture', $factureId)->delete();
+            // Supprimer tous les détails de la facture (tous les types, pas seulement les médicaments)
+            $detailsSupprimes = Detailfacturepatient::where('fkidfacture', $factureId)->delete();
+
+            // Supprimer ou mettre à jour les mouvements de stock liés à cette facture
+            // On met à jour les références plutôt que de supprimer pour garder l'historique
+            \App\Models\MouvementStock::where('fkidFacture', $factureId)
+                ->update(['fkidFacture' => null, 'fkidDetailFacture' => null]);
 
             // Supprimer la facture
             $facture->delete();

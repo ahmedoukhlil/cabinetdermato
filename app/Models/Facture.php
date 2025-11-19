@@ -232,4 +232,39 @@ class Facture extends Model
 		
 		return 'autre';
 	}
+
+	/**
+	 * Générer le prochain numéro de facture de manière cohérente
+	 * Cette méthode garantit que tous les cabinets ont leur propre séquence de numérotation
+	 * 
+	 * @param int $cabinetId ID du cabinet
+	 * @param int|null $annee Année (par défaut: année courante)
+	 * @return array ['nordre' => int, 'Nfacture' => string, 'anneeFacture' => int]
+	 */
+	public static function genererNumeroFacture($cabinetId, $annee = null)
+	{
+		if ($annee === null) {
+			$annee = Carbon::now()->year;
+		}
+
+		// Trouver la dernière facture pour ce cabinet et cette année
+		// Utiliser nordre comme source de vérité pour éviter les problèmes de concurrence
+		$derniereFacture = self::where('anneeFacture', $annee)
+			->where('fkidCabinet', $cabinetId)
+			->orderBy('nordre', 'desc')
+			->lockForUpdate() // Verrouiller pour éviter les doublons en cas de création simultanée
+			->first();
+
+		// Calculer le prochain nordre
+		$nordre = $derniereFacture ? ($derniereFacture->nordre + 1) : 1;
+
+		// Générer le Nfacture au format: nordre-annee
+		$nfacture = $nordre . '-' . $annee;
+
+		return [
+			'nordre' => $nordre,
+			'Nfacture' => $nfacture,
+			'anneeFacture' => $annee
+		];
+	}
 }

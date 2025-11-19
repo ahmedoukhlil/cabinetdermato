@@ -347,14 +347,9 @@ class ConsultationForm extends Component
 
     protected function createFacture()
     {
-        $annee = Carbon::now()->year;
-        $derniereFacture = Facture::where('anneeFacture', $annee)
-                                ->orderBy('Nfacture', 'desc')
-                                ->first();
-        
-        $numero = $derniereFacture ? intval(explode('-', $derniereFacture->Nfacture)[0]) + 1 : 1;
-        $nfacture = $numero . '-' . $annee;
-        $nordre = (Facture::where('anneeFacture', $annee)->max('nordre') ?? 0) + 1;
+        // Utiliser la méthode centralisée pour générer le numéro de facture
+        $cabinetId = Auth::user()->fkidcabinet;
+        $numeroFacture = Facture::genererNumeroFacture($cabinetId);
 
         $montant = floatval($this->montant);
         
@@ -369,9 +364,9 @@ class ConsultationForm extends Component
         $user = DB::table('t_user')->where('Iduser', $userId)->first();
 
         return Facture::create([
-            'Nfacture' => $nfacture,
-            'anneeFacture' => $annee,
-            'nordre' => $nordre,
+            'Nfacture' => $numeroFacture['Nfacture'],
+            'anneeFacture' => $numeroFacture['anneeFacture'],
+            'nordre' => $numeroFacture['nordre'],
             'DtFacture' => Carbon::now(),
             'IDPatient' => $this->selectedPatient['ID'],
             'ISTP' => ($txpec > 0) ? 1 : 0,

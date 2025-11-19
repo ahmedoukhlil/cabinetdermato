@@ -316,7 +316,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Médicament</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock disponible</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seuil min</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix achat</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix vente</th>
@@ -325,14 +325,24 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($stocks as $stock)
+                        @php
+                            $stockDisponible = $this->calculerStockDisponible($stock->fkidMedicament);
+                        @endphp
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ $stock->medicament->LibelleMedic ?? 'N/A' }}</div>
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap">
-                                <span class="text-sm font-semibold {{ $stock->isStockFaible() ? 'text-red-600' : 'text-gray-900' }}">
-                                    {{ number_format($stock->quantiteStock, 0) }}
-                                </span>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold {{ $stockDisponible <= $stock->quantiteMin ? 'text-red-600' : 'text-gray-900' }}">
+                                        Disponible: {{ number_format($stockDisponible, 0) }}
+                                    </span>
+                                    @if($stock->quantiteStock != $stockDisponible)
+                                        <span class="text-xs text-gray-400">
+                                            Total: {{ number_format($stock->quantiteStock, 0) }}
+                                        </span>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {{ number_format($stock->quantiteMin, 0) }}
@@ -344,9 +354,13 @@
                                 {{ number_format($stock->prixVente, 0) }} MRU
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap">
-                                @if($stock->isStockFaible())
+                                @if($stockDisponible <= $stock->quantiteMin)
                                     <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                         <i class="fas fa-exclamation-triangle mr-1"></i>Faible
+                                    </span>
+                                @elseif($stockDisponible <= 0)
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                        <i class="fas fa-times-circle mr-1"></i>Indisponible
                                     </span>
                                 @else
                                     <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
@@ -468,6 +482,15 @@
                             </div>
 
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Prix de vente unitaire *</label>
+                                <input type="number" step="1" wire:model="entreePrixVente" 
+                                       value="{{ $entreePrixVente ?? 0 }}"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" min="0">
+                                @error('entreePrixVente') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                <p class="text-xs text-gray-500 mt-1">Prix de vente pour ce médicament (pré-rempli depuis le PrixRef du médicament)</p>
+                            </div>
+
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Seuil minimum *</label>
                                 <input type="number" step="1" wire:model="entreeQuantiteMin" 
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary" min="0"
@@ -561,12 +584,18 @@
                     </div>
                     <div class="max-h-96 overflow-y-auto">
                         @forelse($stocks as $stock)
-                            @if($stock->quantiteStock > 0)
+                            @php
+                                $stockDisponible = $this->calculerStockDisponible($stock->fkidMedicament);
+                            @endphp
+                            @if($stockDisponible > 0)
                             <div class="p-4 border-b border-gray-100 hover:bg-gray-50 flex items-center justify-between">
                                 <div class="flex-1">
                                     <div class="font-medium text-gray-900">{{ $stock->medicament->LibelleMedic ?? 'N/A' }}</div>
                                     <div class="text-sm text-gray-500 mt-1">
-                                        Stock: <span class="font-semibold {{ $stock->quantiteStock <= $stock->quantiteMin ? 'text-red-600' : 'text-gray-700' }}">{{ number_format($stock->quantiteStock, 0) }}</span>
+                                        Stock disponible: <span class="font-semibold {{ $stockDisponible <= $stock->quantiteMin ? 'text-red-600' : 'text-gray-700' }}">{{ number_format($stockDisponible, 0) }}</span>
+                                        @if($stock->quantiteStock != $stockDisponible)
+                                            <span class="text-xs text-gray-400">(Stock total: {{ number_format($stock->quantiteStock, 0) }})</span>
+                                        @endif
                                         @php
                                             $prix = $stock->medicament->PrixRef ?? 0;
                                         @endphp
@@ -577,12 +606,13 @@
                                 </div>
                                 <div class="flex items-center gap-2 ml-4">
                                     <input type="number" 
-                                           wire:model.defer="quantiteVente.{{ $stock->fkidMedicament }}" 
-                                           value="1" min="1" step="1" 
+                                           wire:model="quantiteVente.{{ $stock->fkidMedicament }}" 
+                                           value="{{ $quantiteVente[$stock->fkidMedicament] ?? 1 }}" 
+                                           min="1" step="1" 
                                            class="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                                           max="{{ $stock->quantiteStock }}">
-                                    <button wire:click="ajouterAuPanierVente({{ $stock->fkidMedicament }}, {{ $quantiteVente[$stock->fkidMedicament] ?? 1 }})" 
-                                            @if(!$patientId) disabled @endif
+                                           max="{{ $stockDisponible }}">
+                                    <button wire:click="ajouterAuPanierVente({{ $stock->fkidMedicament }})" 
+                                            @if(!$patientId || $stockDisponible <= 0) disabled @endif
                                             class="px-3 py-1 bg-primary text-white rounded hover:bg-primary-dark text-sm disabled:bg-gray-300 disabled:cursor-not-allowed">
                                         <i class="fas fa-plus mr-1"></i>Ajouter
                                     </button>
