@@ -183,11 +183,16 @@
                                         </thead>
                                         <tbody>
                                             @php
+                                                // S'assurer que les détails sont chargés
+                                                if (!$facture->relationLoaded('details')) {
+                                                    $facture->load('details');
+                                                }
                                                 $details = $facture->details ?? collect();
                                                 $totalPrix = $details->sum(function($detail) {
                                                     return $detail->PrixFacture * $detail->Quantite;
                                                 });
                                             @endphp
+                                            @if($details->count() > 0)
                                             @foreach($details as $detail)
                                                 @php
                                                     $isMedicament = $detail->IsAct == 2;
@@ -226,6 +231,14 @@
                                                 <td colspan="4" class="text-right"><strong>Total&nbsp;:</strong></td>
                                                 <td><strong>{{ number_format($totalPrix, 0, '', ' ') }} MRU</strong></td>
                                             </tr>
+                                            @else
+                                            <tr>
+                                                <td colspan="5" class="text-center py-4 text-gray-500">
+                                                    <i class="fas fa-info-circle mr-2"></i>
+                                                    Aucun détail trouvé pour cette facture.
+                                                </td>
+                                            </tr>
+                                            @endif
                                         </tbody>
                                     </table>
                                     <div class="flex flex-row gap-2 justify-between mt-4">
@@ -345,25 +358,13 @@
                         <div class="mt-4">
                             <label for="montantReglement" class="block text-sm font-medium text-gray-700">
                                 Montant du paiement
-                                @if(isset($factureSelectionnee['est_facture_pharmacie']) && $factureSelectionnee['est_facture_pharmacie'])
-                                    <span class="text-xs text-red-600 ml-2 font-semibold">(Paiement complet obligatoire)</span>
-                                @endif
                             </label>
                             <div class="mt-1">
                                 <input type="number" step="1" wire:model="montantReglement" id="montantReglement"
-                                    @if(isset($factureSelectionnee['est_facture_pharmacie']) && $factureSelectionnee['est_facture_pharmacie'])
-                                        readonly
-                                        class="shadow-sm block w-full sm:text-sm border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
-                                    @else
-                                        class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
-                                        placeholder="Entrez un montant positif pour un paiement/acompte, négatif pour un remboursement"
-                                    @endif>
+                                    class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
+                                    placeholder="Entrez un montant positif pour un paiement/acompte, négatif pour un remboursement">
                             </div>
-                            @if(isset($factureSelectionnee['est_facture_pharmacie']) && $factureSelectionnee['est_facture_pharmacie'])
-                                <p class="mt-2 text-sm text-red-600 font-semibold">
-                                    <i class="fas fa-exclamation-triangle mr-1"></i>Les factures de pharmacie doivent être payées en totalité. Montant restant : {{ number_format($factureSelectionnee['reste_a_payer'] ?? 0, 0) }} MRU
-                                </p>
-                            @elseif(($factureSelectionnee['est_reglee'] ?? false))
+                            @if(($factureSelectionnee['est_reglee'] ?? false))
                                 <p class="mt-2 text-sm text-gray-500">
                                     Cette facture est déjà réglée. Vous pouvez ajouter un nouveau paiement ou un remboursement.
                                 </p>

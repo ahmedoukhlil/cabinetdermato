@@ -80,6 +80,16 @@ class ReglementFacture extends Component
     // Onglet actif dans l'interface (actes ou pharmacie)
     public $activeTabInterface = 'actes'; // 'actes' ou 'pharmacie'
 
+    public function getModesPaiementProperty()
+    {
+        // Charger les modes de paiement depuis le cache
+        // Utiliser une variable locale pour éviter la récursion
+        $cacheKeyModesPaiement = 'modes_paiement_' . Auth::user()->fkidcabinet;
+        return Cache::remember($cacheKeyModesPaiement, 3600, function() {
+            return RefTypePaiement::all();
+        });
+    }
+
     public function getFacturesProperty()
     {
         if (!$this->selectedPatient) {
@@ -137,9 +147,10 @@ class ReglementFacture extends Component
                 'medecin' => function($query) {
                     $query->select('idMedecin', 'Nom');
                 },
-                // Charger uniquement les IsAct des détails pour déterminer le type de facture sans requêtes N+1
+                // Charger tous les détails avec toutes les colonnes nécessaires pour l'affichage
                 'details' => function($query) {
-                    $query->select('fkidfacture', 'IsAct');
+                    // Charger toutes les colonnes nécessaires pour l'affichage des détails
+                    $query->select('idDetfacture', 'fkidfacture', 'Actes', 'PrixRef', 'PrixFacture', 'Quantite', 'IsAct', 'fkidmedicament', 'fkidacte', 'Dents');
                 }
             ])
             ->select([
@@ -466,8 +477,16 @@ class ReglementFacture extends Component
 
         // Utiliser les données déjà chargées dans la pagination
         $facture = null;
+        $factureIndex = null;
         if ($this->factures) {
+            // Trouver l'index de la facture dans la collection
             $facture = $this->factures->firstWhere('Idfacture', $factureId);
+            if ($facture) {
+                // Trouver l'index dans la collection pour pouvoir la mettre à jour
+                $factureIndex = $this->factures->search(function($item) use ($factureId) {
+                    return $item->Idfacture == $factureId;
+                });
+            }
         }
         
         // Toujours charger la facture avec ses détails depuis la base pour être sûr d'avoir les bonnes données
@@ -479,6 +498,12 @@ class ReglementFacture extends Component
             if (!$facture->relationLoaded('details')) {
                 $facture->load('details');
             }
+        }
+        
+        // Mettre à jour la facture dans la collection paginée avec les détails chargés
+        if ($facture && $factureIndex !== false && $factureIndex !== null && $this->factures) {
+            // Remplacer la facture dans la collection par celle avec les détails chargés
+            $this->factures[$factureIndex] = $facture;
         }
         
         if ($facture) {
@@ -511,17 +536,8 @@ class ReglementFacture extends Component
                 'est_facture_pharmacie' => $estFacturePharmacie
             ];
             
-            // Pour les factures de pharmacie, pré-remplir avec le montant restant complet
-            if ($estFacturePharmacie) {
-                $this->montantReglement = $this->factureSelectionnee['reste_a_payer'];
-            } else {
-                // Si la facture est déjà réglée, on permet d'ajouter un montant positif
-                if ($this->factureSelectionnee['reste_a_payer'] >= $this->factureSelectionnee['part_patient']) {
-                    $this->montantReglement = 0;
-                } else {
-                    $this->montantReglement = $this->factureSelectionnee['part_patient'] - $this->factureSelectionnee['reste_a_payer'];
-                }
-            }
+            // Pré-remplir le montant de règlement avec le reste à payer
+            $this->montantReglement = $this->factureSelectionnee['reste_a_payer'];
 
             // Détection assuré ou non
             if ($facture->ISTP == 1) {
@@ -605,22 +621,10 @@ class ReglementFacture extends Component
                 }
             }
 
-            // Vérifier si c'est une facture de pharmacie (uniquement des médicaments)
-            $estFacturePharmacie = $facture->details()
-                ->where('IsAct', 2)
-                ->exists() && !$facture->details()
-                ->where('IsAct', 1)
-                ->exists();
-
-            // Pour les factures de pharmacie, le paiement doit être complet
-            if ($estFacturePharmacie) {
-                $resteAPayer = $this->factureSelectionnee['reste_a_payer'];
-                if ($this->montantReglement < $resteAPayer) {
-                    throw new \Exception('Les factures de pharmacie doivent être payées en totalité. Montant restant: ' . number_format($resteAPayer, 0) . ' MRU');
-                }
-                if ($this->montantReglement > $resteAPayer) {
-                    throw new \Exception('Le montant du règlement ne peut pas dépasser le montant restant. Montant restant: ' . number_format($resteAPayer, 0) . ' MRU');
-                }
+            // Vérifier que le montant du règlement ne dépasse pas le reste à payer
+            $resteAPayer = $this->factureSelectionnee['reste_a_payer'];
+            if ($this->montantReglement > $resteAPayer) {
+                throw new \Exception('Le montant du règlement ne peut pas dépasser le montant restant. Montant restant: ' . number_format($resteAPayer, 0) . ' MRU');
             }
 
             $isRemboursement = $this->montantReglement < 0;
@@ -1787,6 +1791,16 @@ class ReglementFacture extends Component
             ]);
         }
         
+        // S'assurer que les modes de paiement sont chargés
+        $modesPaiement = $this->modesPaiement;
+        if (!$modesPaiement || $modesPaiement->isEmpty()) {
+            $cacheKeyModesPaiement = 'modes_paiement_' . Auth::user()->fkidcabinet;
+            $modesPaiement = Cache::remember($cacheKeyModesPaiement, 3600, function() {
+                return RefTypePaiement::all();
+            });
+            $this->modesPaiement = $modesPaiement;
+        }
+        
         $isDocteur = Auth::user()->isDocteur();
         $isDocteurProprietaire = Auth::user()->isDocteurProprietaire();
 
@@ -1795,7 +1809,7 @@ class ReglementFacture extends Component
             'isDocteurProprietaire' => $isDocteurProprietaire,
             'facturesEnAttente' => $this->facturesEnAttente ?? collect(),
             'factures' => $factures,
-            'modesPaiement' => $this->modesPaiement ?? collect()
+            'modesPaiement' => $modesPaiement
         ]);
     }
 } 
