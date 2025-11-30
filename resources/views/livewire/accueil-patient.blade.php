@@ -913,7 +913,7 @@
     <div class="mb-3 sm:mb-4 md:mb-6 lg:mb-8 p-3 sm:p-4 md:p-6 rounded-xl bg-primary text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-4">
         <div class="text-center md:text-left">
             <h1 class="text-xl sm:text-2xl md:text-3xl font-bold mb-1">
-                Cabinet Dermatologie
+                Cabinet Dr Salma
             </h1>
             <p class="text-primary-light text-sm sm:text-base md:text-lg">
                     {{ is_array(Auth::user()->typeuser) ? (Auth::user()->typeuser['Libelle'] ?? '') : (is_object(Auth::user()->typeuser) ? Auth::user()->typeuser->Libelle : Auth::user()->typeuser) }}
@@ -991,14 +991,6 @@
                 <span class="font-semibold transition-all duration-500 ease-out">Statistiques</span>
             </button>
             @endif
-            {{-- Gestion Stock --}}
-            <button wire:click="showPharmacie"
-                class="nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl hover:scale-105 transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform active:scale-95">
-                <span class="icon-container inline-flex items-center justify-center rounded-full p-1.5 sm:p-2 md:p-2.5 bg-white text-primary transition-all duration-500 ease-out">
-                    <i class="fas fa-prescription-bottle text-primary text-lg sm:text-xl md:text-2xl transition-all duration-500 ease-out"></i>
-                </span>
-                <span class="font-semibold transition-all duration-500 ease-out">Gestion Stock</span>
-            </button>
             {{-- Gestion du cabinet (bouton principal) --}}
             <button wire:click="toggleCabinetMenu"
                 class="nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform hover:scale-105 active:scale-95 ripple menu-button
@@ -1051,16 +1043,6 @@
                  <span class="font-semibold transition-all duration-500 ease-out">Ordonnances</span>
              </button>
              @endif
-                {{-- Vente Pharmacie --}}
-                <button wire:click="showVentePharmacie"
-                    class="nav-button patient-nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl hover:scale-105 transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform active:scale-95 {{ !$selectedPatient ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed hover:scale-100' : '' }}"
-                    @if(!$selectedPatient) disabled @endif
-                    type="button">
-                    <span class="icon-container inline-flex items-center justify-center rounded-full p-1.5 sm:p-2 md:p-2.5 bg-white text-primary transition-all duration-500 ease-out">
-                     <i class="fas fa-shopping-cart text-primary text-lg sm:text-xl md:text-2xl transition-all duration-500 ease-out"></i>
-                 </span>
-                 <span class="font-semibold transition-all duration-500 ease-out">Vente Pharmacie</span>
-             </button>
             </div>
          </div>
          @endif
@@ -1688,20 +1670,20 @@
         </div>
     @endif
 
-    {{-- Modal Pharmacie (Gestion du stock) --}}
-    @if($showPharmacie)
+    {{-- Modal Dashboard de suivi de stock --}}
+    @if($showDashboardStock)
         <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
-            <div class="relative p-4 w-full max-w-7xl max-h-full">
+            <div class="relative p-4 w-full max-w-6xl max-h-full">
                 <!-- Modal content -->
                 <div class="relative bg-white rounded-lg shadow-sm">
                     <!-- Modal header -->
                     <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
                         <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                            <i class="fas fa-prescription-bottle text-primary"></i>
-                            <span>Gestion du Stock - Pharmacie</span>
+                            <i class="fas fa-chart-line text-primary"></i>
+                            <span>Dashboard de suivi de stock</span>
                         </h3>
                         <button type="button" 
-                                wire:click="fermerPharmacieModal"
+                                wire:click="fermerDashboardStockModal"
                                 class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
                             <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
@@ -1711,42 +1693,7 @@
                     </div>
                     <!-- Modal body -->
                     <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-                        <livewire:pharmacie-manager wire:key="pharmacie-manager-modal" />
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- Modal Vente Pharmacie (depuis Gestion du patient) --}}
-    @if($showVentePharmacie && $selectedPatient)
-        <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
-            <div class="relative p-4 w-full max-w-7xl max-h-full">
-                <!-- Modal content -->
-                <div class="relative bg-white rounded-lg shadow-sm">
-                    <!-- Modal header -->
-                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
-                        <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                            <i class="fas fa-shopping-cart text-primary"></i>
-                            <span>Vente Pharmacie</span>
-                            @if($selectedPatient)
-                            <span class="text-sm font-normal text-gray-600 ml-2">
-                                - {{ is_array($selectedPatient) ? ($selectedPatient['NomPatient'] ?? $selectedPatient['Nom'] ?? 'Patient') : ($selectedPatient->NomPatient ?? $selectedPatient->Nom ?? 'Patient') }}
-                            </span>
-                            @endif
-                        </h3>
-                        <button type="button" 
-                                wire:click="fermerVentePharmacieModal"
-                                class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
-                            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
-                            </svg>
-                            <span class="sr-only">Fermer</span>
-                        </button>
-                    </div>
-                    <!-- Modal body -->
-                    <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-                        <livewire:pharmacie-manager wire:key="vente-pharmacie-modal-{{ is_array($selectedPatient) ? ($selectedPatient['ID'] ?? '') : ($selectedPatient->ID ?? '') }}" :patientId="is_array($selectedPatient) ? ($selectedPatient['ID'] ?? null) : ($selectedPatient->ID ?? null)" :venteOnly="true" />
+                        <livewire:pharmacie-manager wire:key="dashboard-stock-modal" />
                     </div>
                 </div>
             </div>
@@ -1815,6 +1762,18 @@
             <span class="font-semibold transition-all duration-500 ease-out">
                 <span class="hidden sm:inline">Modes de paiement</span>
                 <span class="sm:hidden">Paiements</span>
+            </span>
+        </button>
+
+        {{-- Dashboard de suivi de stock --}}
+        <button wire:click="ouvrirDashboardStock"
+            class="nav-button flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-3.5 w-full sm:w-auto sm:min-w-[180px] md:min-w-[200px] lg:min-w-[220px] border-2 border-primary bg-white text-primary rounded-xl shadow-lg hover:bg-primary hover:text-white hover:shadow-xl hover:scale-105 transition-all duration-500 ease-out text-sm sm:text-base md:text-lg justify-center transform active:scale-95 touch-friendly">
+            <span class="icon-container inline-flex items-center justify-center rounded-full p-1.5 sm:p-2 md:p-2.5 bg-white text-primary transition-all duration-500 ease-out">
+                <i class="fas fa-chart-line text-primary text-lg sm:text-xl md:text-2xl transition-all duration-500 ease-out"></i>
+            </span>
+            <span class="font-semibold transition-all duration-500 ease-out">
+                <span class="hidden sm:inline">Suivi de stock</span>
+                <span class="sm:hidden">Stock</span>
             </span>
         </button>
 
@@ -3091,121 +3050,6 @@
               subtree: true
           });
       }
-
-    // Gérer l'ouverture de facture depuis la pharmacie
-    // Attendre que le composant ReglementFacture soit monté avant d'émettre l'événement
-    Livewire.hook('message.processed', (message, component) => {
-        // Vérifier si c'est le composant ReglementFacture qui vient d'être monté
-        if (component && component.el) {
-            const reglementComponent = component.el.closest('[wire\\:id*="reglement"]');
-            if (reglementComponent) {
-                // Le composant ReglementFacture est monté, vérifier s'il y a une facture en attente
-                const pendingFactureId = window.pendingFacturePharmacieId;
-                if (pendingFactureId) {
-                    setTimeout(() => {
-                        Livewire.emit('ouvrirFacturePharmacie', pendingFactureId);
-                        window.pendingFacturePharmacieId = null;
-                    }, 300);
-                }
-                
-                // Vérifier s'il y a un patient en attente pour ouvrir les factures de pharmacie
-                const pendingPatientId = window.pendingPatientIdForFactures;
-                if (pendingPatientId) {
-                    setTimeout(() => {
-                        Livewire.emit('ouvrirListeFacturesPharmacie', pendingPatientId);
-                        window.pendingPatientIdForFactures = null;
-                    }, 300);
-                }
-                
-                // Vérifier s'il y a des données de patient en attente pour ReglementFacture
-                const pendingPatientData = window.pendingPatientDataForReglement;
-                if (pendingPatientData) {
-                    setTimeout(() => {
-                        // Émettre l'événement Livewire avec les données du patient
-                        Livewire.emit('patientSelectedForReglement', pendingPatientData);
-                        window.pendingPatientDataForReglement = null;
-                    }, 300);
-                }
-            }
-        }
-    });
-
-    // Écouter l'événement browser pour stocker l'ID de facture en attente
-    window.addEventListener('ouvrir-facture-pharmacie', function(event) {
-        const factureId = event.detail?.factureId;
-        if (factureId) {
-            window.pendingFacturePharmacieId = factureId;
-            // Émettre l'événement Livewire directement aussi
-            Livewire.emit('ouvrirFacturePharmacie', factureId);
-        }
-    });
-
-    // Écouter l'événement pour fermer le modal de pharmacie
-    window.addEventListener('fermer-modal-pharmacie', function(event) {
-        @this.call('fermerPharmacieModal');
-        @this.set('showVentePharmacie', false);
-    });
-
-    // Écouter l'événement pour ouvrir la liste des factures de pharmacie
-    window.addEventListener('ouvrir-factures-pharmacie', function(event) {
-        const patientId = event.detail?.patientId;
-        if (patientId) {
-            // Stocker l'ID du patient pour l'utiliser après l'ouverture du modal
-            window.pendingPatientIdForFactures = patientId;
-            
-            // Récupérer les données du patient depuis AccueilPatient pour les stocker
-            // Cela sera utilisé par le hook message.processed
-            const selectedPatient = @this.get('selectedPatient');
-            if (selectedPatient) {
-                window.pendingPatientDataForReglement = selectedPatient;
-            }
-            
-            // Fermer le modal de pharmacie s'il est ouvert (au cas où)
-            @this.call('fermerPharmacieModal');
-            @this.set('showVentePharmacie', false);
-            
-            // Ouvrir le modal de règlement (Facture/Devis) en passant le patientId
-            // Cela garantit que le patient est sélectionné dans AccueilPatient
-            @this.call('showReglement', patientId);
-            
-            // Attendre que le composant ReglementFacture soit monté puis émettre l'événement
-            // Utiliser plusieurs tentatives pour s'assurer que le composant lazy est chargé
-            let attempts = 0;
-            const maxAttempts = 5;
-            
-            const tryEmitEvent = () => {
-                attempts++;
-                // Vérifier si le composant est monté en cherchant l'élément
-                const reglementComponent = document.querySelector('[wire\\:id*="reglement"]');
-                if (reglementComponent) {
-                    console.log('ReglementFacture component found, emitting events');
-                    // Émettre l'événement avec les données du patient
-                    if (window.pendingPatientDataForReglement) {
-                        Livewire.emit('patientSelectedForReglement', window.pendingPatientDataForReglement);
-                    }
-                    Livewire.emit('ouvrirListeFacturesPharmacie', patientId);
-                    window.pendingPatientIdForFactures = null;
-                    window.pendingPatientDataForReglement = null;
-                } else if (attempts < maxAttempts) {
-                    // Si le composant n'est pas encore monté, réessayer
-                    console.log('ReglementFacture component not found, retrying...', attempts);
-                    setTimeout(tryEmitEvent, 300);
-                } else {
-                    // Dernière tentative
-                    console.log('ReglementFacture component not found after max attempts, emitting anyway');
-                    if (window.pendingPatientDataForReglement) {
-                        Livewire.emit('patientSelectedForReglement', window.pendingPatientDataForReglement);
-                    }
-                    Livewire.emit('ouvrirListeFacturesPharmacie', patientId);
-                    window.pendingPatientIdForFactures = null;
-                    window.pendingPatientDataForReglement = null;
-                }
-            };
-            
-            // Démarrer après un délai initial
-            setTimeout(tryEmitEvent, 500);
-        }
-    });
 
 </script>
 @endpush

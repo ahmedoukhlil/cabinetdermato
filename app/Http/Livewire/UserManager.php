@@ -22,12 +22,13 @@ class UserManager extends Component
 
     // Propriétés pour la recherche et le tri
     public $search = '';
-    public $sortField = 'NomComplet';
-    public $sortDirection = 'asc';
+    public $selectedRole = '';
+    public $perPage = 10;
 
     // Propriétés pour la modal
     public $showModal = false;
-    public $modalTitle = '';
+    public $showDeleteModal = false;
+    public $userToDelete;
 
     protected $listeners = ['confirmDelete'];
 
@@ -50,38 +51,53 @@ class UserManager extends Component
         'role.in' => 'Le rôle sélectionné est invalide.',
     ];
 
+    public function updatingSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingSelectedRole()
+    {
+        $this->resetPage();
+    }
+
+    public function getRolesProperty()
+    {
+        return [
+            ['id' => 1, 'Role' => 'Secrétaire'],
+            ['id' => 2, 'Role' => 'Médecin'],
+            ['id' => 3, 'Role' => 'Propriétaire'],
+        ];
+    }
+
     public function render()
     {
-        $users = TUser::where(function($query) {
-            $query->where('NomComplet', 'like', '%' . $this->search . '%')
+        $query = TUser::where('ismasquer', false);
+
+        if ($this->search) {
+            $query->where(function($q) {
+                $q->where('NomComplet', 'like', '%' . $this->search . '%')
                   ->orWhere('login', 'like', '%' . $this->search . '%');
-        })
-        ->where('ismasquer', false)
-        ->orderBy($this->sortField, $this->sortDirection)
-        ->paginate(10);
+            });
+        }
+        
+        if ($this->selectedRole) {
+            $query->where('IdClasseUser', $this->selectedRole);
+        }
+
+        $users = $query->orderBy('NomComplet')->paginate($this->perPage);
 
         return view('livewire.user-manager', [
-            'users' => $users
+            'users' => $users,
+            'roles' => $this->getRolesProperty(),
         ]);
     }
 
-    public function sortBy($field)
+    public function openModal($id = null)
     {
-        if ($this->sortField === $field) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortField = $field;
-            $this->sortDirection = 'asc';
-        }
-    }
-
-    public function openModal($mode = 'create', $userId = null)
-    {
-        $this->resetValidation();
-        $this->reset(['login', 'password', 'nomComplet', 'role', 'isActive', 'isMasquer']);
-
-        if ($mode === 'edit' && $userId) {
-            $user = TUser::find($userId);
+        $this->resetForm();
+        if ($id) {
+            $user = TUser::find($id);
             if ($user) {
                 $this->userId = $user->Iduser;
                 $this->login = $user->login;
@@ -89,20 +105,26 @@ class UserManager extends Component
                 $this->role = $user->IdClasseUser;
                 $this->isActive = !$user->ismasquer;
                 $this->isMasquer = $user->ismasquer;
-                $this->modalTitle = 'Modifier l\'utilisateur';
             }
-        } else {
-            $this->modalTitle = 'Créer un nouvel utilisateur';
         }
-
         $this->showModal = true;
     }
 
     public function closeModal()
     {
         $this->showModal = false;
-        $this->resetValidation();
-        $this->reset(['userId', 'login', 'password', 'nomComplet', 'role', 'isActive', 'isMasquer']);
+        $this->resetForm();
+    }
+
+    public function resetForm()
+    {
+        $this->userId = null;
+        $this->login = '';
+        $this->password = '';
+        $this->nomComplet = '';
+        $this->role = '';
+        $this->isActive = true;
+        $this->isMasquer = false;
     }
 
     public function save()
@@ -172,15 +194,16 @@ class UserManager extends Component
         }
     }
 
-    public function confirmDelete($userId)
+    public function confirmDelete($id)
     {
-        $this->emit('confirmDelete', $userId);
+        $this->userToDelete = $id;
+        $this->showDeleteModal = true;
     }
 
-    public function delete($userId)
+    public function deleteUser()
     {
         try {
-            $user = TUser::find($userId);
+            $user = TUser::find($this->userToDelete);
             if ($user) {
                 // Vérifier si l'utilisateur n'est pas le dernier propriétaire
                 if ($user->IdClasseUser == 3) {
@@ -190,6 +213,7 @@ class UserManager extends Component
                     
                     if ($ownerCount <= 1) {
                         session()->flash('error', 'Impossible de supprimer le dernier propriétaire.');
+                        $this->showDeleteModal = false;
                         return;
                     }
                 }
@@ -201,6 +225,8 @@ class UserManager extends Component
         } catch (\Exception $e) {
             session()->flash('error', 'Une erreur est survenue lors de la suppression.');
         }
+        $this->showDeleteModal = false;
+        $this->userToDelete = null;
     }
 
     public function toggleStatus($userId)

@@ -23,9 +23,10 @@
         .montant-lettres { margin-top: 18px; font-size: 12px; clear: both; text-align: left; }
         .recu-header, .recu-footer { width: 100%; text-align: center; }
         .recu-header img, .recu-footer img { max-width: 100%; height: auto; }
-        .recu-footer { position: absolute; bottom: 0; left: 0; width: 100%; }
+        .recu-footer { position: absolute; bottom: 0; left: 0; right: 0; width: 100%; display: block; padding: 0 18mm 0 10mm; }
+        .recu-footer .footer { margin-top: 0 !important; display: block !important; }
         .print-btn { display: inline-block; }
-        @media print { .a4 { box-shadow: none; } .recu-footer { position: fixed; bottom: 0; left: 0; width: 100%; } .print-btn { display: none !important; } }
+        @media print { .a4 { box-shadow: none; } .recu-footer { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; display: block !important; padding: 0 18mm 0 10mm; } .recu-footer .footer { display: block !important; margin-top: 0 !important; } .print-btn { display: none !important; } }
     </style>
 </head>
 <body>
@@ -138,7 +139,9 @@
     <div class="montant-lettres">
         Arrêté la présente facture à la somme de : <strong>{{ $facture->en_lettres ?? '' }}</strong>
     </div>
-    <div class="recu-footer">@include('partials.recu-footer')</div>
+    <div class="recu-footer" style="width: 100%; position: absolute; bottom: 0; left: 0; right: 0; display: block; padding: 0 18mm 0 10mm;">
+        @include('partials.recu-footer')
+    </div>
 </div>
 </body>
 </html> 

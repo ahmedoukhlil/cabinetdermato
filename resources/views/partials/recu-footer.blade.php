@@ -1,20 +1,20 @@
-<div class="footer" style="text-align:center; margin-top:40px;">
+<div class="footer" style="text-align:center; margin-top:0; width: 100%; display: block;">
     @php
         $footerImagePath = public_path('Pieddepagedermato.png');
-        $footerImageExists = file_exists($footerImagePath);
-        $footerImageBase64 = null;
-        if ($footerImageExists) {
+        $imageExists = file_exists($footerImagePath);
+        $imageBase64 = null;
+        if ($imageExists) {
             try {
-                $footerImageData = file_get_contents($footerImagePath);
-                $footerImageBase64 = 'data:image/png;base64,' . base64_encode($footerImageData);
+                $imageData = file_get_contents($footerImagePath);
+                $imageBase64 = 'data:image/png;base64,' . base64_encode($imageData);
             } catch (\Exception $e) {
                 \Log::error('Erreur lors de la lecture de l\'image de pied de page', ['error' => $e->getMessage()]);
             }
         }
     @endphp
-    @if($footerImageBase64)
-    <div style="margin-bottom: 15px;">
-        <img src="{{ $footerImageBase64 }}" alt="Pied de page" style="max-width: 100%; height: auto;">
+    @if($imageBase64)
+    <div style="width: 100%; text-align: center;">
+        <img src="{{ $imageBase64 }}" alt="Pied de page" style="width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto;" />
     </div>
     @endif
 </div> 

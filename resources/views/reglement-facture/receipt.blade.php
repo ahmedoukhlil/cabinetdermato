@@ -25,7 +25,17 @@
             margin-bottom: 10px;
         }
         .recu-footer {
-            margin-top: 10px;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            display: block;
+            padding: 0 30px;
+        }
+        .recu-footer .footer {
+            margin-top: 0 !important;
+            display: block !important;
         }
         .footer {
             display: none;
@@ -116,7 +126,7 @@
         <x-logo size="h-[400px]" />
     </div>
 </div>
-<div class="recu-footer">
+<div class="recu-footer" style="width: 100%; position: absolute; bottom: 0; left: 0; right: 0; display: block; padding: 0 30px;">
     @include('partials.recu-footer')
 </div>
 <script>

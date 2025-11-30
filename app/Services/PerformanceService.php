@@ -98,7 +98,7 @@ class PerformanceService
         Cache::remember("cabinet_info_{$userId}", 3600, function () {
             $user = auth()->user();
             return [
-                'NomCabinet' => $user->cabinet->NomCabinet ?? null,
+                'NomCabinet' => $user->cabinet->NomCabinet ?? 'Cabinet Savwa',
                 'Adresse' => $user->cabinet->Adresse ?? '',
                 'Telephone' => $user->cabinet->Telephone ?? ''
             ];

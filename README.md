@@ -63,7 +63,7 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
 
-# Gestion Multi-Instances de Cabinet Dermatologie
+# Gestion Multi-Instances de Cabinet Savwa
 
 Ce système permet de gérer plusieurs instances de l'application de cabinet médical à partir d'un template central.
 

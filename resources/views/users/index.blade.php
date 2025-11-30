@@ -11,7 +11,7 @@
                             Gestion des Utilisateurs
                         </h2>
                         <p class="mt-1 text-sm text-gray-500">
-                            Gérez les utilisateurs de votre cabinet Dermatologie
+                            Gérez les utilisateurs de votre cabinet Savwa
                         </p>
                     </div>
                     <div class="mt-4 flex md:mt-0 md:ml-4">

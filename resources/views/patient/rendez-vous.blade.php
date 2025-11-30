@@ -389,6 +389,11 @@
                 بياناتك محمية وسرية
             </p>
         </div>
+        
+        {{-- Pied de page --}}
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; display: block; padding: 0 20px; margin-top: 0;">
+            @include('partials.recu-footer')
+        </div>
     </div>
 
     <!-- Auto-refresh script -->

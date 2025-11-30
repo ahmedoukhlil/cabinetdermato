@@ -68,47 +68,7 @@
         <div id="fiche-content" class="a4">
             {{-- En-tête --}}
             <div class="header">
-                @php
-                    $headerImagePath = public_path('entetedermato.png');
-                    $imageExists = file_exists($headerImagePath);
-                    $imageBase64 = null;
-                    if ($imageExists) {
-                        $imageData = file_get_contents($headerImagePath);
-                        $imageBase64 = 'data:image/png;base64,' . base64_encode($imageData);
-                    }
-                @endphp
-                @if($imageBase64)
-                <img src="{{ $imageBase64 }}" alt="En-tête du cabinet">
-                @endif
-                @php
-                    $nomCabinet = $cabinet['NomCabinet'] ?? $cabinet->NomCabinet ?? null;
-                    $adresse = $cabinet['Adresse'] ?? $cabinet->Adresse ?? null;
-                    $telephone = $cabinet['Telephone'] ?? $cabinet->Telephone ?? null;
-                    
-                    $defaultValues = [
-                        'Cabinet Dermatologie',
-                        'Adresse de Cabinet Dermatologie',
-                        'Téléphone de Cabinet Dermatologie'
-                    ];
-                    if (in_array($nomCabinet, $defaultValues)) $nomCabinet = null;
-                    if (in_array($adresse, $defaultValues)) $adresse = null;
-                    if (in_array($telephone, $defaultValues)) $telephone = null;
-                @endphp
-                @if($nomCabinet || $adresse || $telephone)
-                <div>
-                    @if($nomCabinet)
-                    <div class="cabinet-name">{{ $nomCabinet }}</div>
-                    @endif
-                    <div class="cabinet-details">
-                        @if($adresse)
-                            {{ $adresse }}<br>
-                        @endif
-                        @if($telephone)
-                            Tél: {{ $telephone }}
-                        @endif
-                    </div>
-                </div>
-                @endif
+                @include('partials.recu-header')
             </div>
 
             {{-- Titre --}}
@@ -204,20 +164,9 @@
         </div>
         
         {{-- Pied de page --}}
-        @php
-            $footerImagePath = public_path('Pieddepagedermato.png');
-            $footerImageExists = file_exists($footerImagePath);
-            $footerImageBase64 = null;
-            if ($footerImageExists) {
-                $footerImageData = file_get_contents($footerImagePath);
-                $footerImageBase64 = 'data:image/png;base64,' . base64_encode($footerImageData);
-            }
-        @endphp
-        @if($footerImageBase64)
-        <div style="margin-top: 20px; text-align: center;">
-            <img src="{{ $footerImageBase64 }}" alt="Pied de page" style="max-width: 100%; height: auto;">
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; display: block; padding: 0 10mm; margin-top: 0;">
+            @include('partials.recu-footer')
         </div>
-        @endif
     </div>
 
     <script>

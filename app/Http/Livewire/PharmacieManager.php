@@ -22,9 +22,6 @@ class PharmacieManager extends Component
 
     // Onglet actif
     public $activeTab = 'dashboard';
-    
-    // Mode vente uniquement (depuis gestion patient)
-    public $venteOnly = false;
 
     // Propriétés pour le stock
     public $searchStock = '';
@@ -37,7 +34,6 @@ class PharmacieManager extends Component
     public $entreeLibelleMedic = '';
     public $entreeQuantite = 1;
     public $entreePrixAchat = 0;
-    public $entreePrixVente = 0;
     public $entreeQuantiteMin = 0; // Seuil minimum
     public $entreeNumeroLot = '';
     public $entreeDateExpiration = null;
@@ -71,11 +67,12 @@ class PharmacieManager extends Component
     public $alertesExpires = 0;
     public $alertesExpireBientot = 0;
     
-    // Modals pour les détails des alertes
-    public $showModalRupture = false;
-    public $showModalStockFaible = false;
-    public $showModalLotsExpires = false;
-    public $showModalExpireBientot = false;
+    // Modals pour les détails
+    public $showDetailModal = false;
+    public $detailType = ''; // 'total', 'valeur', 'quantite', 'rupture', 'faible', 'expires', 'expire_bientot', 'entrees', 'sorties'
+    public $detailData = [];
+    public $detailPage = 1;
+    public $detailPerPage = 20;
 
     protected $paginationTheme = 'bootstrap';
     
@@ -83,26 +80,9 @@ class PharmacieManager extends Component
         'patientUpdated' => 'updatePatient'
     ];
 
-    public function mount($patientId = null, $venteOnly = false)
+    public function mount($patientId = null)
     {
         $this->patientId = $patientId;
-        $this->venteOnly = $venteOnly;
-        
-        // Initialiser toutes les propriétés pour éviter les erreurs de corruption
-        if (!isset($this->entreePrixVente)) {
-            $this->entreePrixVente = 0;
-        }
-        
-        // Si mode vente uniquement, forcer l'onglet vente
-        if ($venteOnly) {
-            $this->activeTab = 'vente';
-        } else {
-            // Si on n'est pas en mode vente uniquement et que l'onglet actif est vente, rediriger vers dashboard
-            if ($this->activeTab === 'vente') {
-                $this->activeTab = 'dashboard';
-            }
-        }
-        
         $this->calculerAlertes();
     }
     
@@ -131,37 +111,6 @@ class PharmacieManager extends Component
     }
 
     // ========== ONGLET STOCK ACTUEL ==========
-
-    /**
-     * Calculer le stock disponible réel pour un médicament
-     * (stock total - quantités déjà facturées non payées dont le stock n'a pas été déduit)
-     */
-    private function calculerStockDisponible($medicamentId)
-    {
-        $stock = StockMedicament::where('fkidMedicament', $medicamentId)
-            ->where('fkidCabinet', Auth::user()->fkidcabinet)
-            ->first();
-
-        if (!$stock) {
-            return 0;
-        }
-
-        // Calculer la quantité déjà facturée mais non payée ET dont le stock n'a pas encore été déduit
-        $quantiteDejaFacturee = Detailfacturepatient::join('facture', 'detailfacturepatient.fkidfacture', '=', 'facture.Idfacture')
-            ->where('detailfacturepatient.fkidmedicament', $medicamentId)
-            ->where('detailfacturepatient.IsAct', 2)
-            ->whereRaw('(CASE WHEN facture.ISTP > 0 THEN facture.TotalfactPatient ELSE facture.TotFacture END) > (facture.TotReglPatient + COALESCE(facture.ReglementPEC, 0))')
-            ->whereNotExists(function($query) {
-                $query->select(DB::raw(1))
-                    ->from('mouvements_stock')
-                    ->whereColumn('mouvements_stock.fkidFacture', 'facture.Idfacture')
-                    ->whereColumn('mouvements_stock.fkidMedicament', 'detailfacturepatient.fkidmedicament')
-                    ->where('mouvements_stock.typeMouvement', 'SORTIE');
-            })
-            ->sum('detailfacturepatient.Quantite');
-
-        return max(0, $stock->quantiteStock - $quantiteDejaFacturee);
-    }
 
     public function getStocksProperty()
     {
@@ -227,7 +176,6 @@ class PharmacieManager extends Component
         $this->entreeLibelleMedic = '';
         $this->entreeQuantite = 1;
         $this->entreePrixAchat = 0;
-        $this->entreePrixVente = 0;
         $this->entreeQuantiteMin = 0;
         $this->entreeNumeroLot = '';
         $this->entreeDateExpiration = null;
@@ -251,18 +199,6 @@ class PharmacieManager extends Component
             $this->entreeShowMedicamentResults = false;
             $this->entreeMedicamentId = null;
             $this->entreeLibelleMedic = '';
-            $this->entreePrixVente = 0;
-        }
-    }
-    
-    public function updatedEntreeMedicamentId()
-    {
-        // Mettre à jour le prix de vente quand un médicament est sélectionné
-        if ($this->entreeMedicamentId) {
-            $medicament = Medicament::find($this->entreeMedicamentId);
-            if ($medicament) {
-                $this->entreePrixVente = $medicament->PrixRef ?? 0;
-            }
         }
     }
 
@@ -324,9 +260,6 @@ class PharmacieManager extends Component
                 $this->entreeSearchMedicament = $medicament->LibelleMedic;
                 $this->entreeMedicamentsResults = [];
                 $this->entreeShowMedicamentResults = false;
-                
-                // Pré-remplir le prix de vente avec le PrixRef du médicament (toujours, même si 0)
-                $this->entreePrixVente = $medicament->PrixRef ?? 0;
             } else {
                 session()->flash('error', 'Médicament non trouvé ou invalide.');
             }
@@ -346,13 +279,11 @@ class PharmacieManager extends Component
             'entreeMedicamentId' => 'required|integer|exists:medicaments,IDMedic',
             'entreeQuantite' => 'required|integer|min:1',
             'entreePrixAchat' => 'required|integer|min:0',
-            'entreePrixVente' => 'required|integer|min:0',
             'entreeQuantiteMin' => 'required|integer|min:0',
         ], [
             'entreeMedicamentId.required' => 'Veuillez sélectionner un médicament',
             'entreeQuantite.required' => 'La quantité est requise',
             'entreePrixAchat.required' => 'Le prix d\'achat est requis',
-            'entreePrixVente.required' => 'Le prix de vente est requis',
             'entreeQuantiteMin.required' => 'Le seuil minimum est requis',
         ]);
 
@@ -370,7 +301,7 @@ class PharmacieManager extends Component
                     'quantiteStock' => 0,
                     'quantiteMin' => $this->entreeQuantiteMin,
                     'prixAchat' => $this->entreePrixAchat,
-                    'prixVente' => $this->entreePrixVente,
+                    'prixVente' => Medicament::find($this->entreeMedicamentId)->PrixRef ?? 0,
                     'Masquer' => 0
                 ]
             );
@@ -403,7 +334,6 @@ class PharmacieManager extends Component
             $stock->update([
                 'quantiteStock' => $stock->quantiteStock + $this->entreeQuantite,
                 'prixAchat' => $nouveauPrixAchat,
-                'prixVente' => $this->entreePrixVente, // Mettre à jour le prix de vente
                 'quantiteMin' => $this->entreeQuantiteMin, // Mettre à jour le seuil minimum
                 'dateDerniereEntree' => Carbon::now()
             ]);
@@ -432,17 +362,15 @@ class PharmacieManager extends Component
 
     // ========== ONGLET VENTE ==========
 
-    public function ajouterAuPanierVente($medicamentId)
+    public function ajouterAuPanierVente($medicamentId, $quantite = null)
     {
         if (!$this->patientId) {
             session()->flash('error', 'Veuillez sélectionner un patient pour effectuer une vente.');
             return;
         }
 
-        // Lire la quantité depuis la propriété quantiteVente
-        $quantiteFinale = isset($this->quantiteVente[$medicamentId]) && $this->quantiteVente[$medicamentId] > 0 
-            ? (int)$this->quantiteVente[$medicamentId] 
-            : 1;
+        // Utiliser la quantité depuis quantiteVente si disponible, sinon utiliser le paramètre ou 1
+        $quantiteFinale = $quantite ?? ($this->quantiteVente[$medicamentId] ?? 1);
         
         if ($quantiteFinale <= 0) {
             session()->flash('error', 'La quantité doit être supérieure à 0.');
@@ -458,11 +386,8 @@ class PharmacieManager extends Component
             return;
         }
 
-        // Calculer le stock disponible réel
-        $stockDisponible = $this->calculerStockDisponible($medicamentId);
-        
-        if ($stockDisponible < $quantiteFinale) {
-            session()->flash('error', 'Stock insuffisant. Stock disponible: ' . number_format($stockDisponible, 0) . ' (Stock total: ' . number_format($stock->quantiteStock, 0) . ')');
+        if ($stock->quantiteStock < $quantiteFinale) {
+            session()->flash('error', 'Stock insuffisant. Stock disponible: ' . number_format($stock->quantiteStock, 0));
             return;
         }
 
@@ -488,9 +413,8 @@ class PharmacieManager extends Component
         
         if ($index !== false) {
             $nouvelleQuantite = $this->panierVente[$index]['quantite'] + $quantiteFinale;
-            $stockDisponible = $this->calculerStockDisponible($medicamentId);
-            if ($nouvelleQuantite > $stockDisponible) {
-                session()->flash('error', 'Quantité totale dépasse le stock disponible (' . number_format($stockDisponible, 0) . ').');
+            if ($nouvelleQuantite > $stock->quantiteStock) {
+                session()->flash('error', 'Quantité totale dépasse le stock disponible.');
                 return;
             }
             $this->panierVente[$index]['quantite'] = $nouvelleQuantite;
@@ -503,7 +427,7 @@ class PharmacieManager extends Component
                 'prixRef' => $prixRef,
                 'prixFacture' => $prixFacture,
                 'montant' => $prixFacture * $quantiteFinale,
-                'stockDisponible' => $this->calculerStockDisponible($medicamentId)
+                'stockDisponible' => $stock->quantiteStock
             ];
         }
 
@@ -575,8 +499,11 @@ class PharmacieManager extends Component
                 throw new \Exception('Patient non trouvé.');
             }
 
-            // Utiliser la méthode centralisée pour générer le numéro de facture
-            $numeroFacture = Facture::genererNumeroFacture($user->fkidcabinet);
+            // Créer la facture vide - Utiliser la méthode centralisée pour générer un numéro unique
+            $factureData = Facture::generateUniqueFactureNumber($user->fkidcabinet);
+            $nfacture = $factureData['Nfacture'];
+            $nordre = $factureData['nordre'];
+            $annee = $factureData['anneeFacture'];
 
             $medecinId = $user->fkidmedecin ?? 1;
             $medecin = Medecin::find($medecinId);
@@ -585,9 +512,9 @@ class PharmacieManager extends Component
             }
 
             $facture = Facture::create([
-                'Nfacture' => $numeroFacture['Nfacture'],
-                'anneeFacture' => $numeroFacture['anneeFacture'],
-                'nordre' => $numeroFacture['nordre'],
+                'Nfacture' => $nfacture,
+                'anneeFacture' => $annee,
+                'nordre' => $nordre,
                 'DtFacture' => Carbon::now(),
                 'IDPatient' => $this->patientId,
                 'ISTP' => 0,
@@ -636,20 +563,13 @@ class PharmacieManager extends Component
                     throw new \Exception('Le médicament "' . $item['libelle'] . '" n\'est pas en stock.');
                 }
 
-                // Calculer la quantité déjà facturée mais non payée ET dont le stock n'a pas encore été déduit
-                // Pour les factures de pharmacie, le stock est déduit immédiatement, donc on ne doit pas
-                // tenir compte des factures qui ont déjà des mouvements de sortie
+                // Calculer la quantité déjà facturée mais non payée pour ce médicament
+                // Prendre en compte TOUTES les factures non payées (pas seulement celles du patient)
+                // pour une meilleure gestion du stock global
                 $quantiteDejaFacturee = Detailfacturepatient::join('facture', 'detailfacturepatient.fkidfacture', '=', 'facture.Idfacture')
                     ->where('detailfacturepatient.fkidmedicament', $item['medicamentId'])
                     ->where('detailfacturepatient.IsAct', 2)
                     ->whereRaw('(CASE WHEN facture.ISTP > 0 THEN facture.TotalfactPatient ELSE facture.TotFacture END) > (facture.TotReglPatient + COALESCE(facture.ReglementPEC, 0))')
-                    ->whereNotExists(function($query) {
-                        $query->select(DB::raw(1))
-                            ->from('mouvements_stock')
-                            ->whereColumn('mouvements_stock.fkidFacture', 'facture.Idfacture')
-                            ->whereColumn('mouvements_stock.fkidMedicament', 'detailfacturepatient.fkidmedicament')
-                            ->where('mouvements_stock.typeMouvement', 'SORTIE');
-                    })
                     ->sum('detailfacturepatient.Quantite');
 
                 $stockDisponible = $stock->quantiteStock - $quantiteDejaFacturee;
@@ -688,9 +608,6 @@ class PharmacieManager extends Component
                     'user' => $user->NomComplet ?? 'System',
                     'DtActe' => Carbon::now()
                 ]);
-                
-                // Déduire le stock immédiatement lors de la création de la facture
-                $this->deduireStockMedicament($item['medicamentId'], $item['quantite'], $facture->Idfacture, $detail->idDetfacture);
             }
 
             // Mettre à jour le total de la facture
@@ -703,18 +620,12 @@ class PharmacieManager extends Component
             $this->showFactureModal = true;
 
             DB::commit();
-            session()->flash('message', 'Facture créée avec succès. Le stock a été déduit immédiatement.');
+            session()->flash('message', 'Facture créée avec succès. Le stock sera déduit lors du paiement complet de la facture.');
             $this->calculerAlertes();
 
         } catch (\Exception $e) {
             DB::rollBack();
-            $errorMessage = 'Erreur lors de la création de la facture : ' . $e->getMessage();
-            session()->flash('error', $errorMessage);
-            
-            // Émettre un événement browser pour forcer l'affichage de la notification
-            $this->dispatchBrowserEvent('pharmacie-error', [
-                'message' => $errorMessage
-            ]);
+            session()->flash('error', 'Erreur lors de la création de la facture : ' . $e->getMessage());
         }
     }
 
@@ -723,32 +634,6 @@ class PharmacieManager extends Component
         $this->showFactureModal = false;
         $this->factureVenteId = null;
         $this->panierVente = [];
-    }
-
-    public function ouvrirListeFacturesPharmacie()
-    {
-        // Fermer le modal de confirmation
-        $this->showFactureModal = false;
-        
-        if (!$this->patientId) {
-            session()->flash('error', 'Aucun patient sélectionné.');
-            return;
-        }
-        
-        // Émettre un événement Livewire directement vers AccueilPatient
-        // C'est plus fiable que les événements browser
-        $this->emit('ouvrirListeFacturesPharmacieDepuisVente', $this->patientId);
-        
-        // Émettre aussi un événement browser en backup pour s'assurer que ça fonctionne
-        $this->dispatchBrowserEvent('ouvrir-factures-pharmacie', [
-            'patientId' => $this->patientId
-        ]);
-        
-        // Réinitialiser
-        $this->factureVenteId = null;
-        
-        // Forcer le re-render pour s'assurer que les événements sont émis
-        $this->dispatchBrowserEvent('force-refresh');
     }
 
     // ========== ONGLET HISTORIQUE ==========
@@ -925,349 +810,285 @@ class PharmacieManager extends Component
             ->orderBy('LibelleMedic', 'asc')
             ->get();
     }
+
+    // ========== MÉTHODES POUR LES DÉTAILS ==========
     
-    // ========== MÉTHODES POUR LES MODALS D'ALERTES ==========
-    
-    public function ouvrirModalRupture()
+    public function ouvrirDetailModal($type)
     {
-        $this->showModalRupture = true;
-    }
-    
-    public function fermerModalRupture()
-    {
-        $this->showModalRupture = false;
-    }
-    
-    public function ouvrirModalStockFaible()
-    {
-        $this->showModalStockFaible = true;
-    }
-    
-    public function fermerModalStockFaible()
-    {
-        $this->showModalStockFaible = false;
-    }
-    
-    public function ouvrirModalLotsExpires()
-    {
-        $this->showModalLotsExpires = true;
-    }
-    
-    public function fermerModalLotsExpires()
-    {
-        $this->showModalLotsExpires = false;
-    }
-    
-    public function ouvrirModalExpireBientot()
-    {
-        $this->showModalExpireBientot = true;
-    }
-    
-    public function fermerModalExpireBientot()
-    {
-        $this->showModalExpireBientot = false;
-    }
-    
-    // Propriétés calculées pour les détails
-    public function getMedicamentsRuptureProperty()
-    {
+        $this->detailType = $type;
+        $this->detailPage = 1;
         $cabinetId = Auth::user()->fkidcabinet;
-        return StockMedicament::with(['medicament'])
-            ->where('fkidCabinet', $cabinetId)
-            ->where('quantiteStock', '<=', 0)
-            ->where('Masquer', 0)
-            ->whereHas('medicament', function($q) {
-                $q->where('fkidtype', 1);
-            })
-            ->orderBy('quantiteStock', 'asc')
-            ->get();
-    }
-    
-    public function getMedicamentsStockFaibleProperty()
-    {
-        $cabinetId = Auth::user()->fkidcabinet;
-        return StockMedicament::with(['medicament'])
-            ->where('fkidCabinet', $cabinetId)
-            ->whereColumn('quantiteStock', '<=', 'quantiteMin')
-            ->where('quantiteStock', '>', 0)
-            ->where('Masquer', 0)
-            ->whereHas('medicament', function($q) {
-                $q->where('fkidtype', 1);
-            })
-            ->orderBy('quantiteStock', 'asc')
-            ->get();
-    }
-    
-    public function getLotsExpiresProperty()
-    {
-        $cabinetId = Auth::user()->fkidcabinet;
-        return LotMedicament::with(['stock.medicament'])
-            ->whereHas('stock', function($q) use ($cabinetId) {
-                $q->where('fkidCabinet', $cabinetId);
-            })
-            ->whereNotNull('dateExpiration')
-            ->where('dateExpiration', '<', Carbon::now())
-            ->where('quantiteRestante', '>', 0)
-            ->where('Masquer', 0)
-            ->orderBy('dateExpiration', 'asc')
-            ->get();
-    }
-    
-    public function getLotsExpireBientotProperty()
-    {
-        $cabinetId = Auth::user()->fkidcabinet;
-        $dateLimite = Carbon::now()->addDays(30);
-        return LotMedicament::with(['stock.medicament'])
-            ->whereHas('stock', function($q) use ($cabinetId) {
-                $q->where('fkidCabinet', $cabinetId);
-            })
-            ->whereNotNull('dateExpiration')
-            ->where('dateExpiration', '>=', Carbon::now())
-            ->where('dateExpiration', '<=', $dateLimite)
-            ->where('quantiteRestante', '>', 0)
-            ->where('Masquer', 0)
-            ->orderBy('dateExpiration', 'asc')
-            ->get();
-    }
-
-    /**
-     * Déduire le stock d'un médicament lors d'une vente via facture
-     */
-    private function deduireStockMedicament($medicamentId, $quantite, $factureId, $detailFactureId)
-    {
-        $stock = StockMedicament::where('fkidMedicament', $medicamentId)
-            ->where('fkidCabinet', Auth::user()->fkidcabinet)
-            ->first();
-
-        if (!$stock || $stock->quantiteStock < $quantite) {
-            throw new \Exception('Stock insuffisant pour ce médicament. Stock disponible: ' . ($stock ? $stock->quantiteStock : 0));
-        }
-
-        // Récupérer le prix depuis la table medicaments
-        $medicament = Medicament::find($medicamentId);
-        $prixVente = $medicament ? ($medicament->PrixRef ?? 0) : 0;
-
-        $quantiteRestante = $quantite;
-        $lots = LotMedicament::where('fkidStock', $stock->idStock)
-            ->where('quantiteRestante', '>', 0)
-            ->where('Masquer', 0)
-            ->orderBy('dateExpiration', 'asc')
-            ->orderBy('dateEntree', 'asc')
-            ->get();
-
-        $facture = Facture::find($factureId);
-        $patientId = $facture->IDPatient ?? null;
-
-        foreach ($lots as $lot) {
-            if ($quantiteRestante <= 0) {
+        
+        switch ($type) {
+            case 'total':
+                $this->detailData = StockMedicament::where('fkidCabinet', $cabinetId)
+                    ->where('Masquer', 0)
+                    ->whereHas('medicament', function($q) {
+                        $q->where('fkidtype', 1);
+                    })
+                    ->with('medicament')
+                    ->orderBy('quantiteStock', 'desc')
+                    ->get()
+                    ->map(function($stock) {
+                        return [
+                            'medicament' => $stock->medicament->LibelleMedic ?? 'N/A',
+                            'quantite' => $stock->quantiteStock,
+                            'seuil_min' => $stock->quantiteMin,
+                            'prix_achat' => $stock->prixAchat,
+                            'prix_vente' => $stock->prixVente,
+                            'valeur' => $stock->quantiteStock * $stock->prixAchat,
+                            'statut' => $stock->isStockFaible() ? 'faible' : ($stock->quantiteStock == 0 ? 'rupture' : 'ok')
+                        ];
+                    })
+                    ->toArray();
                 break;
-            }
-
-            $quantiteAPrendre = min($quantiteRestante, $lot->quantiteRestante);
-
-            // Mettre à jour le lot
-            $lot->quantiteRestante -= $quantiteAPrendre;
-            $lot->save();
-
-            // Créer le mouvement
-            MouvementStock::create([
-                'fkidStock' => $stock->idStock,
-                'fkidMedicament' => $medicamentId,
-                'fkidLot' => $lot->idLot,
-                'typeMouvement' => 'SORTIE',
-                'quantite' => -$quantiteAPrendre,
-                'prixUnitaire' => $prixVente,
-                'montantTotal' => $prixVente * $quantiteAPrendre,
-                'motif' => 'Vente via facture pharmacie',
-                'fkidFacture' => $factureId,
-                'fkidDetailFacture' => $detailFactureId,
-                'fkidPatient' => $patientId,
-                'fkidUser' => Auth::id(),
-                'dateMouvement' => Carbon::now(),
-                'reference' => $facture->Nfacture ?? null,
-                'notes' => null
-            ]);
-
-            $quantiteRestante -= $quantiteAPrendre;
+                
+            case 'valeur':
+                $this->detailData = StockMedicament::where('fkidCabinet', $cabinetId)
+                    ->where('Masquer', 0)
+                    ->whereHas('medicament', function($q) {
+                        $q->where('fkidtype', 1);
+                    })
+                    ->with('medicament')
+                    ->get()
+                    ->map(function($stock) {
+                        return [
+                            'medicament' => $stock->medicament->LibelleMedic ?? 'N/A',
+                            'quantite' => $stock->quantiteStock,
+                            'prix_achat' => $stock->prixAchat,
+                            'valeur' => $stock->quantiteStock * $stock->prixAchat,
+                        ];
+                    })
+                    ->sortByDesc('valeur')
+                    ->values()
+                    ->toArray();
+                break;
+                
+            case 'quantite':
+                $this->detailData = StockMedicament::where('fkidCabinet', $cabinetId)
+                    ->where('Masquer', 0)
+                    ->whereHas('medicament', function($q) {
+                        $q->where('fkidtype', 1);
+                    })
+                    ->with('medicament')
+                    ->orderBy('quantiteStock', 'desc')
+                    ->get()
+                    ->map(function($stock) {
+                        return [
+                            'medicament' => $stock->medicament->LibelleMedic ?? 'N/A',
+                            'quantite' => $stock->quantiteStock,
+                            'seuil_min' => $stock->quantiteMin,
+                        ];
+                    })
+                    ->toArray();
+                break;
+                
+            case 'rupture':
+                $this->detailData = StockMedicament::where('fkidCabinet', $cabinetId)
+                    ->where('quantiteStock', '<=', 0)
+                    ->where('Masquer', 0)
+                    ->whereHas('medicament', function($q) {
+                        $q->where('fkidtype', 1);
+                    })
+                    ->with('medicament')
+                    ->get()
+                    ->map(function($stock) {
+                        return [
+                            'medicament' => $stock->medicament->LibelleMedic ?? 'N/A',
+                            'quantite' => $stock->quantiteStock,
+                            'seuil_min' => $stock->quantiteMin,
+                            'prix_achat' => $stock->prixAchat,
+                        ];
+                    })
+                    ->toArray();
+                break;
+                
+            case 'faible':
+                $this->detailData = StockMedicament::where('fkidCabinet', $cabinetId)
+                    ->whereColumn('quantiteStock', '<=', 'quantiteMin')
+                    ->where('quantiteStock', '>', 0)
+                    ->where('Masquer', 0)
+                    ->whereHas('medicament', function($q) {
+                        $q->where('fkidtype', 1);
+                    })
+                    ->with('medicament')
+                    ->orderBy('quantiteStock', 'asc')
+                    ->get()
+                    ->map(function($stock) {
+                        return [
+                            'medicament' => $stock->medicament->LibelleMedic ?? 'N/A',
+                            'quantite' => $stock->quantiteStock,
+                            'seuil_min' => $stock->quantiteMin,
+                            'difference' => $stock->quantiteMin - $stock->quantiteStock,
+                            'prix_achat' => $stock->prixAchat,
+                        ];
+                    })
+                    ->toArray();
+                break;
+                
+            case 'expires':
+                $this->detailData = LotMedicament::whereHas('stock', function($q) use ($cabinetId) {
+                        $q->where('fkidCabinet', $cabinetId);
+                    })
+                    ->whereNotNull('dateExpiration')
+                    ->where('dateExpiration', '<', Carbon::now())
+                    ->where('quantiteRestante', '>', 0)
+                    ->where('Masquer', 0)
+                    ->with(['medicament', 'stock'])
+                    ->orderBy('dateExpiration', 'asc')
+                    ->get()
+                    ->map(function($lot) {
+                        return [
+                            'medicament' => $lot->medicament->LibelleMedic ?? 'N/A',
+                            'numero_lot' => $lot->numeroLot,
+                            'quantite' => $lot->quantiteRestante,
+                            'date_expiration' => $lot->dateExpiration ? Carbon::parse($lot->dateExpiration)->format('d/m/Y') : 'N/A',
+                            'jours_expires' => $lot->dateExpiration ? Carbon::parse($lot->dateExpiration)->diffInDays(Carbon::now(), false) : null,
+                        ];
+                    })
+                    ->toArray();
+                break;
+                
+            case 'expire_bientot':
+                $dateLimite = Carbon::now()->addDays(30);
+                $this->detailData = LotMedicament::whereHas('stock', function($q) use ($cabinetId) {
+                        $q->where('fkidCabinet', $cabinetId);
+                    })
+                    ->whereNotNull('dateExpiration')
+                    ->where('dateExpiration', '>=', Carbon::now())
+                    ->where('dateExpiration', '<=', $dateLimite)
+                    ->where('quantiteRestante', '>', 0)
+                    ->where('Masquer', 0)
+                    ->with(['medicament', 'stock'])
+                    ->orderBy('dateExpiration', 'asc')
+                    ->get()
+                    ->map(function($lot) {
+                        return [
+                            'medicament' => $lot->medicament->LibelleMedic ?? 'N/A',
+                            'numero_lot' => $lot->numeroLot,
+                            'quantite' => $lot->quantiteRestante,
+                            'date_expiration' => $lot->dateExpiration ? Carbon::parse($lot->dateExpiration)->format('d/m/Y') : 'N/A',
+                            'jours_restants' => $lot->dateExpiration ? Carbon::now()->diffInDays(Carbon::parse($lot->dateExpiration), false) : null,
+                        ];
+                    })
+                    ->toArray();
+                break;
+                
+            case 'entrees':
+                $this->detailData = MouvementStock::whereHas('stock', function($q) use ($cabinetId) {
+                        $q->where('fkidCabinet', $cabinetId);
+                    })
+                    ->where('typeMouvement', 'ENTREE')
+                    ->whereMonth('dateMouvement', Carbon::now()->month)
+                    ->whereYear('dateMouvement', Carbon::now()->year)
+                    ->with(['medicament', 'user', 'lot'])
+                    ->orderBy('dateMouvement', 'desc')
+                    ->get()
+                    ->map(function($mouvement) {
+                        // Utiliser le prix d'achat du lot si disponible, sinon le prixUnitaire du mouvement
+                        $prixAchat = $mouvement->lot ? ($mouvement->lot->prixAchatUnitaire ?? $mouvement->prixUnitaire) : $mouvement->prixUnitaire;
+                        
+                        return [
+                            'medicament' => $mouvement->medicament->LibelleMedic ?? 'N/A',
+                            'quantite' => $mouvement->quantite,
+                            'prix_unitaire' => $prixAchat, // Prix d'achat
+                            'montant' => $prixAchat * $mouvement->quantite, // Recalculer avec le prix d'achat
+                            'date' => $mouvement->dateMouvement ? Carbon::parse($mouvement->dateMouvement)->format('d/m/Y H:i') : 'N/A',
+                            'utilisateur' => $mouvement->user->NomComplet ?? 'N/A',
+                            'reference' => $mouvement->reference,
+                            'motif' => $mouvement->motif,
+                        ];
+                    })
+                    ->toArray();
+                break;
+                
+            case 'sorties':
+                $this->detailData = MouvementStock::whereHas('stock', function($q) use ($cabinetId) {
+                        $q->where('fkidCabinet', $cabinetId);
+                    })
+                    ->where('typeMouvement', 'SORTIE')
+                    ->whereMonth('dateMouvement', Carbon::now()->month)
+                    ->whereYear('dateMouvement', Carbon::now()->year)
+                    ->where('quantite', '!=', 0) // Exclure les quantités nulles
+                    ->with(['medicament', 'user', 'patient', 'facture', 'detailFacture'])
+                    ->orderBy('dateMouvement', 'desc')
+                    ->get()
+                    ->map(function($mouvement) {
+                        // Utiliser uniquement le PrixFacture du détail de facture
+                        $prixFacture = $mouvement->detailFacture ? ($mouvement->detailFacture->PrixFacture ?? 0) : 0;
+                        // S'assurer que la quantité est toujours positive pour les sorties
+                        $quantite = abs($mouvement->quantite);
+                        $montantVente = $prixFacture * $quantite;
+                        
+                        return [
+                            'medicament' => $mouvement->medicament->LibelleMedic ?? 'N/A',
+                            'quantite' => $quantite, // Quantité toujours positive
+                            'prix_unitaire' => $prixFacture, // PrixFacture du détail de facture
+                            'montant' => $montantVente, // Montant de vente
+                            'date' => $mouvement->dateMouvement ? Carbon::parse($mouvement->dateMouvement)->format('d/m/Y H:i') : 'N/A',
+                            'utilisateur' => $mouvement->user->NomComplet ?? 'N/A',
+                            'patient' => $mouvement->patient ? trim($mouvement->patient->Nom . ' ' . $mouvement->patient->Prenom) : null,
+                            'facture' => $mouvement->facture ? $mouvement->facture->Nfacture : null,
+                            'motif' => $mouvement->motif,
+                        ];
+                    })
+                    ->filter(function($item) {
+                        // Filtrer les entrées avec quantité nulle (au cas où)
+                        return $item['quantite'] > 0;
+                    })
+                    ->values()
+                    ->toArray();
+                break;
         }
-
-        // Si pas de lots ou quantité restante après épuisement des lots, déduire directement du stock
-        if ($quantiteRestante > 0) {
-            // Vérifier que le stock global est suffisant
-            if ($stock->quantiteStock < $quantite) {
-                throw new \Exception('Stock insuffisant pour ce médicament. Stock disponible: ' . number_format($stock->quantiteStock, 0) . ', Quantité demandée: ' . number_format($quantite, 0));
-            }
-            
-            MouvementStock::create([
-                'fkidStock' => $stock->idStock,
-                'fkidMedicament' => $medicamentId,
-                'fkidLot' => null,
-                'typeMouvement' => 'SORTIE',
-                'quantite' => -$quantiteRestante,
-                'prixUnitaire' => $prixVente,
-                'montantTotal' => $prixVente * $quantiteRestante,
-                'motif' => 'Vente via facture pharmacie' . ($lots->isEmpty() ? ' (sans lot)' : ' (stock sans lot)'),
-                'fkidFacture' => $factureId,
-                'fkidDetailFacture' => $detailFactureId,
-                'fkidPatient' => $patientId,
-                'fkidUser' => Auth::id(),
-                'dateMouvement' => Carbon::now(),
-                'reference' => $facture->Nfacture ?? null,
-                'notes' => $lots->isEmpty() ? 'Aucun lot disponible' : 'Quantité restante après épuisement des lots'
-            ]);
-        }
-
-        // Mettre à jour le stock global (déduction de la quantité totale)
-        $stock->quantiteStock -= $quantite;
-        $stock->dateDerniereSortie = Carbon::now();
-        $stock->save();
+        
+        $this->showDetailModal = true;
     }
-
-    /**
-     * Annuler une facture de pharmacie et remettre les articles au stock
-     */
-    public function annulerFacture($factureId)
+    
+    public function fermerDetailModal()
     {
-        try {
-            DB::beginTransaction();
-
-            $facture = Facture::find($factureId);
-            if (!$facture) {
-                throw new \Exception('Facture non trouvée.');
-            }
-
-            // Vérifier que la facture n'est pas payée (ou partiellement payée)
-            $montantTotal = $facture->ISTP > 0 ? $facture->TotalfactPatient : $facture->TotFacture;
-            $montantPaye = $facture->TotReglPatient + ($facture->ReglementPEC ?? 0);
-            
-            if ($montantPaye > 0) {
-                throw new \Exception('Impossible d\'annuler une facture qui a déjà été payée. Montant payé: ' . number_format($montantPaye, 0) . ' MRU');
-            }
-
-            // Vérifier que c'est une facture de pharmacie (uniquement des médicaments)
-            $detailsMedicaments = Detailfacturepatient::where('fkidfacture', $factureId)
-                ->where('IsAct', 2)
-                ->whereNotNull('fkidmedicament')
-                ->get();
-
-            if ($detailsMedicaments->isEmpty()) {
-                throw new \Exception('Cette facture ne contient pas de médicaments.');
-            }
-
-            // Remettre le stock pour chaque médicament
-            foreach ($detailsMedicaments as $detail) {
-                $this->remettreStockMedicament($detail->fkidmedicament, $detail->Quantite, $factureId, $detail->idDetfacture);
-            }
-
-            // Supprimer tous les détails de la facture (tous les types, pas seulement les médicaments)
-            $detailsSupprimes = Detailfacturepatient::where('fkidfacture', $factureId)->delete();
-
-            // Supprimer ou mettre à jour les mouvements de stock liés à cette facture
-            // On met à jour les références plutôt que de supprimer pour garder l'historique
-            \App\Models\MouvementStock::where('fkidFacture', $factureId)
-                ->update(['fkidFacture' => null, 'fkidDetailFacture' => null]);
-
-            // Supprimer la facture
-            $facture->delete();
-
-            DB::commit();
-            session()->flash('message', 'Facture annulée avec succès. Les articles ont été remis au stock.');
-            $this->calculerAlertes();
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $errorMessage = 'Erreur lors de l\'annulation de la facture : ' . $e->getMessage();
-            session()->flash('error', $errorMessage);
-            
-            $this->dispatchBrowserEvent('pharmacie-error', [
-                'message' => $errorMessage
-            ]);
+        $this->showDetailModal = false;
+        $this->detailType = '';
+        $this->detailData = [];
+        $this->detailPage = 1;
+    }
+    
+    public function getDetailDataPaginatedProperty()
+    {
+        if (empty($this->detailData)) {
+            return [];
+        }
+        
+        $offset = ($this->detailPage - 1) * $this->detailPerPage;
+        return array_slice($this->detailData, $offset, $this->detailPerPage);
+    }
+    
+    public function getDetailTotalPagesProperty()
+    {
+        if (empty($this->detailData)) {
+            return 1;
+        }
+        return ceil(count($this->detailData) / $this->detailPerPage);
+    }
+    
+    public function previousDetailPage()
+    {
+        if ($this->detailPage > 1) {
+            $this->detailPage--;
         }
     }
-
-    /**
-     * Remettre le stock d'un médicament lors de l'annulation d'une facture
-     */
-    private function remettreStockMedicament($medicamentId, $quantite, $factureId, $detailFactureId)
+    
+    public function nextDetailPage()
     {
-        $stock = StockMedicament::where('fkidMedicament', $medicamentId)
-            ->where('fkidCabinet', Auth::user()->fkidcabinet)
-            ->first();
-
-        if (!$stock) {
-            return; // Pas de stock à remettre
+        if ($this->detailPage < $this->detailTotalPages) {
+            $this->detailPage++;
         }
-
-        $facture = Facture::find($factureId);
-        $patientId = $facture->IDPatient ?? null;
-
-        // Récupérer les mouvements de sortie pour ce détail pour savoir quels lots ont été utilisés
-        $mouvementsSortie = MouvementStock::where('fkidDetailFacture', $detailFactureId)
-            ->where('fkidFacture', $factureId)
-            ->where('typeMouvement', 'SORTIE')
-            ->where('fkidMedicament', $medicamentId)
-            ->get();
-
-        // Remettre le stock dans les lots si possible
-        foreach ($mouvementsSortie as $mouvement) {
-            if ($mouvement->fkidLot) {
-                // Remettre dans le lot d'origine si possible
-                $lot = LotMedicament::find($mouvement->fkidLot);
-                if ($lot) {
-                    $quantiteARemettre = abs($mouvement->quantite);
-                    $lot->quantiteRestante += $quantiteARemettre;
-                    $lot->save();
-                }
-            }
-
-            // Créer un mouvement d'ajustement pour annuler la sortie
-            MouvementStock::create([
-                'fkidStock' => $stock->idStock,
-                'fkidMedicament' => $medicamentId,
-                'fkidLot' => $mouvement->fkidLot,
-                'typeMouvement' => 'AJUSTEMENT',
-                'quantite' => abs($mouvement->quantite), // Quantité positive pour remettre
-                'prixUnitaire' => $mouvement->prixUnitaire,
-                'montantTotal' => $mouvement->montantTotal,
-                'motif' => 'Annulation facture pharmacie - Remise de stock',
-                'fkidFacture' => $factureId,
-                'fkidDetailFacture' => $detailFactureId,
-                'fkidPatient' => $patientId,
-                'fkidUser' => Auth::id(),
-                'dateMouvement' => Carbon::now(),
-                'reference' => $facture->Nfacture ?? null,
-                'notes' => 'Remise de stock suite à annulation de la facture'
-            ]);
+    }
+    
+    public function goToDetailPage($page)
+    {
+        if ($page >= 1 && $page <= $this->detailTotalPages) {
+            $this->detailPage = $page;
         }
-
-        // Si pas de mouvements trouvés (cas rare), créer un ajustement direct
-        if ($mouvementsSortie->isEmpty()) {
-            $medicament = Medicament::find($medicamentId);
-            $prixVente = $medicament ? ($medicament->PrixRef ?? 0) : 0;
-
-            MouvementStock::create([
-                'fkidStock' => $stock->idStock,
-                'fkidMedicament' => $medicamentId,
-                'fkidLot' => null,
-                'typeMouvement' => 'AJUSTEMENT',
-                'quantite' => $quantite,
-                'prixUnitaire' => $prixVente,
-                'montantTotal' => $prixVente * $quantite,
-                'motif' => 'Annulation facture pharmacie - Remise de stock (sans mouvement de sortie)',
-                'fkidFacture' => $factureId,
-                'fkidDetailFacture' => $detailFactureId,
-                'fkidPatient' => $patientId,
-                'fkidUser' => Auth::id(),
-                'dateMouvement' => Carbon::now(),
-                'reference' => $facture->Nfacture ?? null,
-                'notes' => 'Remise de stock suite à annulation de la facture (aucun mouvement de sortie trouvé)'
-            ]);
-        }
-
-        // Mettre à jour le stock global
-        $stock->quantiteStock += $quantite;
-        $stock->dateDerniereEntree = Carbon::now();
-        $stock->save();
     }
 
     public function render()

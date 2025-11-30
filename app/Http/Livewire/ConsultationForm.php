@@ -39,13 +39,16 @@ class ConsultationForm extends Component
     public $txpec = '';
     public $montant = 0;
     public $mode_paiement = '';
-    public $acte_id = '';
+    public $acte_id = null;
     public $acte_nom = '';
     public $date_consultation;
     public $medecins;
     public $search = '';
     public $searchBy = 'telephone';
     public $isSearching = false;
+    
+    // Type de consultation : 'generaliste' (par défaut) ou 'specialiste'
+    public $typeConsultation = 'generaliste';
 
     // Propriétés pour l'assurance
     public $assuranceInfo = null;
@@ -70,8 +73,8 @@ class ConsultationForm extends Component
         'mode_paiement' => 'required|string',
         'montant' => 'required|numeric|min:0',
         'txpec' => 'nullable|numeric|min:0|max:100',
-        'acte_id' => 'required|integer',
-        'acte_nom' => 'required|string',
+        'acte_id' => 'required|integer|min:1',
+        'acte_nom' => 'required|string|min:1',
     ];
 
     protected $messages = [
@@ -145,19 +148,82 @@ class ConsultationForm extends Component
 
     protected function loadConsultationAct()
     {
-        // Utiliser le cache pour l'acte de consultation
-        $acte = cache()->remember('consultation_act', 3600, function() {
-            return Acte::where('Acte', 'like', '%consultation%')
-                      ->orWhere('Acte', 'like', '%CONSULTATION%')
-                      ->first();
-        });
-        
-        if ($acte) {
-            $this->acte_id = $acte->ID;
-            $this->acte_nom = $acte->Acte;
-            $this->montant = floatval($acte->PrixRef);
-        } else {
-            throw new \Exception('Aucun acte de consultation trouvé dans la base de données');
+        try {
+            // Charger l'acte selon le type de consultation
+            $cacheKey = 'consultation_act_' . $this->typeConsultation;
+            $acte = cache()->remember($cacheKey, 3600, function() {
+                if ($this->typeConsultation === 'specialiste') {
+                    // Chercher consultation spécialiste
+                    return Acte::where(function($query) {
+                        $query->where('Acte', 'like', '%consultation spécialiste%')
+                              ->orWhere('Acte', 'like', '%CONSULTATION SPECIALISTE%')
+                              ->orWhere('Acte', 'like', '%specialiste%')
+                              ->orWhere('Acte', 'like', '%SPECIALISTE%');
+                    })->where('Masquer', 0)->first();
+                } else {
+                    // Chercher consultation généraliste (par défaut)
+                    return Acte::where(function($query) {
+                        $query->where('Acte', 'like', '%consultation%')
+                              ->orWhere('Acte', 'like', '%CONSULTATION%');
+                    })
+                    ->where(function($query) {
+                        $query->where('Acte', 'not like', '%spécialiste%')
+                              ->where('Acte', 'not like', '%SPECIALISTE%')
+                              ->where('Acte', 'not like', '%specialiste%');
+                    })
+                    ->where('Masquer', 0)
+                    ->first();
+                }
+            });
+            
+            if ($acte) {
+                $this->acte_id = intval($acte->ID);
+                $this->acte_nom = $acte->Acte;
+                $this->montant = floatval($acte->PrixRef ?? 0);
+            } else {
+                // Si aucun acte spécialiste n'est trouvé, utiliser l'acte généraliste
+                if ($this->typeConsultation === 'specialiste') {
+                    $acteGeneraliste = cache()->remember('consultation_act_generaliste', 3600, function() {
+                        return Acte::where(function($query) {
+                            $query->where('Acte', 'like', '%consultation%')
+                                  ->orWhere('Acte', 'like', '%CONSULTATION%');
+                        })
+                        ->where('Masquer', 0)
+                        ->first();
+                    });
+                    
+                    if ($acteGeneraliste) {
+                        $this->acte_id = intval($acteGeneraliste->ID);
+                        $this->acte_nom = $acteGeneraliste->Acte . ' (Spécialiste)';
+                        $this->montant = floatval($acteGeneraliste->PrixRef ?? 0);
+                    } else {
+                        \Log::warning('Aucun acte de consultation trouvé dans la base de données');
+                        $this->acte_id = null;
+                        $this->acte_nom = '';
+                        $this->montant = 0;
+                    }
+                } else {
+                    \Log::warning('Aucun acte de consultation généraliste trouvé dans la base de données');
+                    $this->acte_id = null;
+                    $this->acte_nom = '';
+                    $this->montant = 0;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors du chargement de l\'acte de consultation', ['error' => $e->getMessage()]);
+            $this->acte_id = null;
+            $this->acte_nom = '';
+            $this->montant = 0;
+        }
+    }
+    
+    public function updatedTypeConsultation($value)
+    {
+        // Recharger l'acte quand le type de consultation change
+        $this->loadConsultationAct();
+        // Recalculer les montants si un patient est sélectionné
+        if ($this->selectedPatient) {
+            $this->recalculerMontants();
         }
     }
 
@@ -268,21 +334,49 @@ class ConsultationForm extends Component
                 'acte_nom' => $this->acte_nom
             ]);
             
+            // S'assurer que acte_id est un entier avant la validation
+            if ($this->acte_id !== null) {
+                $this->acte_id = intval($this->acte_id);
+            }
+            
+            // S'assurer que medecin_id est un entier
+            if ($this->medecin_id !== null) {
+                $this->medecin_id = intval($this->medecin_id);
+            }
+            
+            // S'assurer que montant est un nombre
+            if ($this->montant !== null) {
+                $this->montant = floatval($this->montant);
+            }
+            
             try {
                 $this->validate();
             } catch (\Illuminate\Validation\ValidationException $e) {
                 \Log::error('Erreur de validation', [
                     'errors' => $e->errors(),
                     'data' => [
-                        'selectedPatient' => $this->selectedPatient,
+                        'selectedPatient' => $this->selectedPatient ? 'présent' : 'absent',
                         'medecin_id' => $this->medecin_id,
                         'mode_paiement' => $this->mode_paiement,
                         'montant' => $this->montant,
+                        'txpec' => $this->txpec,
                         'acte_id' => $this->acte_id,
                         'acte_nom' => $this->acte_nom
                     ]
                 ]);
-                throw $e;
+                
+                // Afficher les erreurs de validation à l'utilisateur
+                $errorMessages = [];
+                foreach ($e->errors() as $field => $messages) {
+                    foreach ($messages as $message) {
+                        $errorMessages[] = $message;
+                    }
+                }
+                $errorMessage = 'Erreur de validation: ' . implode(' | ', $errorMessages);
+                
+                $this->addError('general', $errorMessage);
+                session()->flash('error', $errorMessage);
+                return;
             }
 
             if (!$this->selectedPatient) {
@@ -297,7 +391,7 @@ class ConsultationForm extends Component
                 $facture = $this->createFacture();
                 \Log::info('Facture créée', ['facture_id' => $facture->Idfacture]);
                 
-                // Créer le détail de la facture
+                // Créer le détail de la facture (consultation)
                 $this->createDetailFacture($facture);
                 
                 // Créer la fiche de traitement (dossier médical)
@@ -347,15 +441,34 @@ class ConsultationForm extends Component
 
     protected function createFacture()
     {
-        // Utiliser la méthode centralisée pour générer le numéro de facture
-        $cabinetId = Auth::user()->fkidcabinet;
-        $numeroFacture = Facture::genererNumeroFacture($cabinetId);
+        // Utiliser la méthode centralisée pour générer un numéro unique
+        $user = Auth::user();
+        $cabinetId = $user->fkidcabinet ?? 1;
+        
+        $factureData = Facture::generateUniqueFactureNumber($cabinetId);
+        $nfacture = $factureData['Nfacture'];
+        $nordre = $factureData['nordre'];
+        $annee = $factureData['anneeFacture'];
 
         $montant = floatval($this->montant);
         
         // Récupérer le taux de prise en charge et l'assureur depuis le patient
+        // Si les données ne sont pas dans selectedPatient, les récupérer directement depuis la base
+        $patient = Patient::find($this->selectedPatient['ID']);
         $txpec = isset($this->selectedPatient['TauxPEC']) ? floatval($this->selectedPatient['TauxPEC']) : 0;
-        $fkidEtsAssurance = isset($this->selectedPatient['Assureur']) ? $this->selectedPatient['Assureur'] : null;
+        $fkidEtsAssurance = null;
+        
+        // Récupérer l'assureur depuis le patient
+        if ($patient && $patient->Assureur) {
+            $fkidEtsAssurance = $patient->Assureur;
+            // Si le taux PEC n'est pas dans selectedPatient, le récupérer depuis l'assureur
+            if ($txpec == 0 && $patient->assureur) {
+                $txpec = floatval($patient->assureur->TauxdePEC ?? 0);
+            }
+        } elseif (isset($this->selectedPatient['Assureur']) && $this->selectedPatient['Assureur'] > 0) {
+            $fkidEtsAssurance = $this->selectedPatient['Assureur'];
+        }
+        
         $totalPEC = ($montant * $txpec);
         $totalPatient = ($montant * (1 - $txpec));
 
@@ -364,9 +477,9 @@ class ConsultationForm extends Component
         $user = DB::table('t_user')->where('Iduser', $userId)->first();
 
         return Facture::create([
-            'Nfacture' => $numeroFacture['Nfacture'],
-            'anneeFacture' => $numeroFacture['anneeFacture'],
-            'nordre' => $numeroFacture['nordre'],
+            'Nfacture' => $nfacture,
+            'anneeFacture' => $annee,
+            'nordre' => $nordre,
             'DtFacture' => Carbon::now(),
             'IDPatient' => $this->selectedPatient['ID'],
             'ISTP' => ($txpec > 0) ? 1 : 0,
@@ -405,11 +518,12 @@ class ConsultationForm extends Component
             'ActesArab' => 'NR',
             'user' => Auth::user()->name,
             'TauxPEC' => $facture->TXPEC,
-            'MontantPEC' => $facture->TotalPEC,
-            'MontantPatient' => $facture->TotalfactPatient,
+            'MontantPEC' => ($this->montant * $facture->TXPEC),
+            'MontantPatient' => ($this->montant * (1 - $facture->TXPEC)),
             'Dents' => 'Cons'
         ]);
     }
+    
 
     protected function createCaisseOperation($facture)
     {
@@ -418,10 +532,12 @@ class ConsultationForm extends Component
             throw new \Exception('Médecin non trouvé');
         }
 
+        $designation = 'Consultation N°' . $facture->Nfacture . ' chez Dr. ' . $medecin->Nom;
+
         return CaisseOperation::create([
             'dateoper' => Carbon::now(),
             'MontantOperation' => $this->montant,
-            'designation' => 'Consultation N°' . $facture->Nfacture . ' chez Dr. ' . $medecin->Nom,
+            'designation' => $designation,
             'fkidTiers' => $this->selectedPatient['ID'],
             'entreEspece' => $facture->TotalfactPatient, // Montant payé par le patient
             'retraitEspece' => 0,
@@ -447,12 +563,16 @@ class ConsultationForm extends Component
         $maintenant = Carbon::now();
         $ordreRDV = Rendezvou::generateNextOrderNumber($maintenant, $this->medecin_id);
         
+        $actePrevu = $this->typeConsultation === 'specialiste' 
+            ? 'Consultation spécialiste' 
+            : 'Consultation généraliste';
+        
         $rendezVous = Rendezvou::create([
             'fkidPatient' => $this->selectedPatient['ID'],
             'fkidMedecin' => $this->medecin_id,
             'dtPrevuRDV' => $maintenant->format('Y-m-d'),
             'HeureRdv' => $maintenant->format('Y-m-d H:i:s'), // Format datetime complet
-            'ActePrevu' => 'Consultation',
+            'ActePrevu' => $actePrevu,
             'rdvConfirmer' => 'Confirmé',
             'DtAjRdv' => now(),
             'user' => Auth::user()->name,
@@ -506,6 +626,9 @@ class ConsultationForm extends Component
             'istp',
             'assureur_id'
         ]);
+        
+        // Réinitialiser le type de consultation à généraliste
+        $this->typeConsultation = 'generaliste';
         
         // Nettoyer la session
         session()->forget('consultation_patient');

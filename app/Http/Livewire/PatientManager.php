@@ -15,13 +15,13 @@ class PatientManager extends Component
 
     // Propriétés pour la recherche et le filtrage
     public $search = '';
-    public $sortField = 'Nom';
+    public $sortField = 'IdentifiantPatient';
     public $sortDirection = 'asc';
-    public $showInactive = false;
+    public $showInactive = true; // Par défaut, afficher tous les patients
     public $showModal = false;
     public $isAssured = false;
     public $searchBy = 'all'; // all, name, nni, phone
-    public $creationOnly = false; // Mode création uniquement (sans liste)
+    public $creationOnly = false; // Si true, n'affiche que le formulaire de création
 
     // Propriétés pour le formulaire
     public $patientId;
@@ -46,6 +46,26 @@ class PatientManager extends Component
     public $selectedPatientId;
     public $paymentHistory = [];
 
+    protected $listeners = [
+        'openPatientCreateModal' => 'openModal',
+    ];
+
+    // Réinitialiser la page lors des changements de recherche ou de filtre
+    public function updatedSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedShowInactive()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSearchBy()
+    {
+        $this->resetPage();
+    }
+
     public function rules()
     {
         return [
@@ -64,7 +84,7 @@ class PatientManager extends Component
             'dateNaissance' => 'nullable|date',
             'genre' => 'nullable|in:H,F',
             'telephone1' => 'required|min:8',
-            'telephone2' => 'nullable|min:8',
+            'telephone2' => 'nullable|min:8|max:255',
             'adresse' => 'nullable',
             'identifiantAssurance' => 'nullable|min:1',
             'assureur' => 'nullable|integer',
@@ -100,10 +120,10 @@ class PatientManager extends Component
     {
         $this->creationOnly = $creationOnly;
         $this->resetForm();
-        $this->showInactive = false;
+        $this->showInactive = true; // Par défaut, afficher tous les patients
         
-        // Si mode création uniquement, ouvrir automatiquement le formulaire
-        if ($creationOnly) {
+        // Si on est en mode création uniquement, ouvrir automatiquement le modal
+        if ($this->creationOnly) {
             $this->openModal();
         }
     }
@@ -116,6 +136,8 @@ class PatientManager extends Component
             $this->sortField = $field;
             $this->sortDirection = 'asc';
         }
+        // Réinitialiser à la première page lors du changement de tri
+        $this->resetPage();
     }
 
     public function resetForm()
@@ -177,6 +199,11 @@ class PatientManager extends Component
     public function closeModal()
     {
         $this->showModal = false;
+        
+        // Si on est en mode création uniquement, fermer aussi le modal parent
+        if ($this->creationOnly) {
+            $this->emit('closeNouveauPatientModal');
+        }
     }
 
     public function save()
@@ -189,12 +216,12 @@ class PatientManager extends Component
             $data = [
                 'Nom' => $this->nom,
                 'Prenom' => $this->nom,
-                'NNI' => $this->nni,
-                'DtNaissance' => $this->dateNaissance,
-                'Genre' => $this->genre,
+                'NNI' => !empty($this->nni) ? $this->nni : null,
+                'DtNaissance' => !empty($this->dateNaissance) ? $this->dateNaissance : null,
+                'Genre' => !empty($this->genre) ? $this->genre : null,
                 'Telephone1' => $this->telephone1,
-                'Telephone2' => $this->telephone2,
-                'Adresse' => $this->adresse,
+                'Telephone2' => !empty($this->telephone2) ? $this->telephone2 : null,
+                'Adresse' => !empty($this->adresse) ? $this->adresse : null,
                 'IdentifiantAssurance' => $this->isAssured ? $this->identifiantAssurance : '',
                 'Assureur' => $this->isAssured ? $this->assureur : 1,
                 'MatriculeFonct' => $this->matriculeFonct,
@@ -225,9 +252,9 @@ class PatientManager extends Component
             $this->resetForm();
             $this->closeModal();
             
-            // Si mode création uniquement, émettre un événement pour fermer le modal parent
-            if ($this->creationOnly && !$this->patientId) {
-                $this->emit('patientCreated', $patient->ID ?? null);
+            // Si on est en mode création uniquement, fermer aussi le modal parent après succès
+            if ($this->creationOnly) {
+                $this->emit('closeNouveauPatientModal');
             }
         } catch (\Exception $e) {
             \Log::error('Erreur création patient : ' . $e->getMessage());
@@ -251,20 +278,13 @@ class PatientManager extends Component
         }
     }
 
-    protected $listeners = [
-        'openPatientCreateForm' => 'openModal',
-        'openPatientCreateModal' => 'openModal',
-        'patientCreated' => 'handlePatientCreated'
-    ];
-    
-    public function handlePatientCreated()
-    {
-        // Cette méthode peut être utilisée pour gérer les événements après création
-    }
-
     public function render()
     {
         $query = Patient::query()
+            // Appliquer le filtre uniquement si l'utilisateur choisit de masquer les inactifs
+            ->when(!$this->showInactive, function($query) {
+                $query->where('choix', 0);
+            })
             ->when($this->search, function($query) {
                 $query->where(function($q) {
                     switch($this->searchBy) {
@@ -288,7 +308,13 @@ class PatientManager extends Component
                     }
                 });
             })
-            ->orderBy($this->sortField, $this->sortDirection);
+            ->when($this->sortField === 'IdentifiantPatient', function($query) {
+                // Tri numérique pour le N° Fiche
+                $query->orderByRaw('CAST(IdentifiantPatient AS UNSIGNED) ' . $this->sortDirection);
+            }, function($query) {
+                // Tri normal pour les autres champs
+                $query->orderBy($this->sortField, $this->sortDirection);
+            });
 
         $patients = $query->with('assureur')->paginate(10);
 

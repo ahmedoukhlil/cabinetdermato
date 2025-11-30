@@ -68,6 +68,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Libellé</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix de référence</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
@@ -98,16 +99,53 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ number_format($medicament->PrixRef ?? 0, 2) }} MRU
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                @if($medicament->fkidtype == 1)
+                                    @if($medicament->quantiteStock !== null)
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                                @if($medicament->stockFaible) bg-red-100 text-red-800
+                                                @elseif($medicament->quantiteStock == 0) bg-gray-100 text-gray-800
+                                                @else bg-green-100 text-green-800
+                                                @endif">
+                                                {{ number_format($medicament->quantiteStock, 0) }}
+                                            </span>
+                                            @if($medicament->stockFaible && $medicament->quantiteStock > 0)
+                                                <span class="text-xs text-orange-600" title="Stock faible (seuil: {{ number_format($medicament->quantiteMin, 0) }})">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                </span>
+                                            @elseif($medicament->quantiteStock == 0)
+                                                <span class="text-xs text-red-600" title="Rupture de stock">
+                                                    <i class="fas fa-times-circle"></i>
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-gray-400 text-xs">Non en stock</span>
+                                    @endif
+                                @else
+                                    <span class="text-gray-400 text-xs">-</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <button wire:click="openModal({{ $medicament->IDMedic }})" 
-                                        class="text-blue-600 hover:text-blue-800 mr-3">Modifier</button>
-                                <button wire:click="confirmDelete({{ $medicament->IDMedic }})" 
-                                        class="text-red-600 hover:text-red-800">Supprimer</button>
+                                <div class="flex items-center gap-2">
+                                    <button wire:click="openModal({{ $medicament->IDMedic }})" 
+                                            class="text-blue-600 hover:text-blue-800">Modifier</button>
+                                    @if($medicament->fkidtype == 1)
+                                        <button wire:click="openStockModal({{ $medicament->IDMedic }})" 
+                                                class="text-green-600 hover:text-green-800" 
+                                                title="Ajouter du stock">
+                                            <i class="fas fa-plus-circle"></i> Stock
+                                        </button>
+                                    @endif
+                                    <button wire:click="confirmDelete({{ $medicament->IDMedic }})" 
+                                            class="text-red-600 hover:text-red-800">Supprimer</button>
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-2 text-center text-gray-400">Aucun médicament trouvé</td>
+                            <td colspan="5" class="px-4 py-2 text-center text-gray-400">Aucun médicament trouvé</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -166,6 +204,86 @@
                     <button wire:click="deleteMedicament" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Supprimer</button>
                     <button wire:click="$set('showDeleteModal', false)" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Annuler</button>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Modal d'ajout de stock -->
+    @if($showStockModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div class="bg-white rounded-lg shadow-lg w-full max-w-2xl p-8 relative max-h-[90vh] overflow-y-auto">
+                <div class="bg-green-600 text-white p-4 rounded-t-lg -mt-8 -mx-8 mb-6">
+                    <h2 class="text-xl font-bold">Ajouter du stock</h2>
+                </div>
+                <button wire:click="closeStockModal" class="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-2xl font-bold">&times;</button>
+                <form wire:submit.prevent="saveStock">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Médicament</label>
+                            <input type="text" 
+                                   value="{{ \App\Models\Medicament::find($stockMedicamentId)->LibelleMedic ?? '' }}" 
+                                   disabled
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                        </div>
+                        
+                        <div>
+                            <label for="stockQuantite" class="block text-sm font-medium text-gray-700 mb-1">Quantité *</label>
+                            <input type="number" wire:model.defer="stockQuantite" id="stockQuantite" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                                   min="1" required>
+                            @error('stockQuantite') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+                        
+                        <div>
+                            <label for="stockPrixAchat" class="block text-sm font-medium text-gray-700 mb-1">Prix d'achat unitaire</label>
+                            <input type="number" step="0.01" wire:model.defer="stockPrixAchat" id="stockPrixAchat" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                                   min="0" placeholder="Optionnel">
+                            @error('stockPrixAchat') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+                        
+                        <div>
+                            <label for="stockQuantiteMin" class="block text-sm font-medium text-gray-700 mb-1">Seuil minimum *</label>
+                            <input type="number" wire:model.defer="stockQuantiteMin" id="stockQuantiteMin" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                                   min="0" required>
+                            @error('stockQuantiteMin') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+                        
+                        <div>
+                            <label for="stockNumeroLot" class="block text-sm font-medium text-gray-700 mb-1">Numéro de lot</label>
+                            <input type="text" wire:model.defer="stockNumeroLot" id="stockNumeroLot" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                        </div>
+                        
+                        <div>
+                            <label for="stockDateExpiration" class="block text-sm font-medium text-gray-700 mb-1">Date d'expiration</label>
+                            <input type="date" wire:model.defer="stockDateExpiration" id="stockDateExpiration" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                        </div>
+                        
+                        <div>
+                            <label for="stockFournisseur" class="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                            <input type="text" wire:model.defer="stockFournisseur" id="stockFournisseur" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                        </div>
+                        
+                        <div>
+                            <label for="stockReferenceFacture" class="block text-sm font-medium text-gray-700 mb-1">Référence facture</label>
+                            <input type="text" wire:model.defer="stockReferenceFacture" id="stockReferenceFacture" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" wire:click="closeStockModal" 
+                                class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">Annuler</button>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                            <i class="fas fa-plus mr-2"></i>Ajouter au stock
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif

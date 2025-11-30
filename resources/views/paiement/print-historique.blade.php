@@ -41,9 +41,9 @@
     </div>
     <div style="height: 60px;"></div>
 </div>
-<div class="recu-footer">
-    @include('partials.recu-footer')
-</div>
+    <div class="recu-footer" style="width: 100%; position: absolute; bottom: 0; left: 0; right: 0; display: block; padding: 0 20px;">
+        @include('partials.recu-footer')
+    </div>
 <script>
     window.onload = function() {
         window.print();

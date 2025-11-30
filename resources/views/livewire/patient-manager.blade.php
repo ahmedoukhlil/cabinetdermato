@@ -18,7 +18,7 @@
         <div class="flex items-center space-x-4">
             <label class="flex items-center space-x-2 text-sm text-gray-600">
                 <input type="checkbox" wire:model="showInactive" class="form-checkbox h-4 w-4 text-primary rounded border-gray-300 focus:ring-primary">
-                <span>Afficher les patients inactifs</span>
+                <span>Masquer les patients inactifs</span>
             </label>
             <button wire:click="openModal" class="inline-flex items-center px-4 py-2 bg-primary border border-transparent rounded-lg font-semibold text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-200">
                 Nouveau Patient
@@ -61,9 +61,36 @@
             <table class="w-full min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th scope="col" class="px-3 py-2 w-1/12 text-center">N° Fiche</th>
-                        <th scope="col" class="px-3 py-2 w-1/4">Nom</th>
-                        <th scope="col" class="px-3 py-2 w-1/6">Téléphone</th>
+                        <th scope="col" class="px-3 py-2 w-1/12 text-center">
+                            <button wire:click="sortBy('IdentifiantPatient')" class="flex items-center justify-center w-full text-left font-medium text-gray-700 hover:text-gray-900 focus:outline-none">
+                                N° Fiche
+                                @if($sortField === 'IdentifiantPatient')
+                                    <i class="fas fa-sort-{{ $sortDirection === 'asc' ? 'up' : 'down' }} ml-1 text-primary"></i>
+                                @else
+                                    <i class="fas fa-sort ml-1 text-gray-400"></i>
+                                @endif
+                            </button>
+                        </th>
+                        <th scope="col" class="px-3 py-2 w-1/4">
+                            <button wire:click="sortBy('Prenom')" class="flex items-center w-full text-left font-medium text-gray-700 hover:text-gray-900 focus:outline-none">
+                                Nom
+                                @if($sortField === 'Prenom')
+                                    <i class="fas fa-sort-{{ $sortDirection === 'asc' ? 'up' : 'down' }} ml-1 text-primary"></i>
+                                @else
+                                    <i class="fas fa-sort ml-1 text-gray-400"></i>
+                                @endif
+                            </button>
+                        </th>
+                        <th scope="col" class="px-3 py-2 w-1/6">
+                            <button wire:click="sortBy('Telephone1')" class="flex items-center w-full text-left font-medium text-gray-700 hover:text-gray-900 focus:outline-none">
+                                Téléphone
+                                @if($sortField === 'Telephone1')
+                                    <i class="fas fa-sort-{{ $sortDirection === 'asc' ? 'up' : 'down' }} ml-1 text-primary"></i>
+                                @else
+                                    <i class="fas fa-sort ml-1 text-gray-400"></i>
+                                @endif
+                            </button>
+                        </th>
                         <th scope="col" class="px-3 py-2 w-1/12 text-center">Genre</th>
                         <th scope="col" class="px-3 py-2 w-1/4">Assurance</th>
                         <th scope="col" class="px-3 py-2 w-1/12 text-center">Actions</th>
@@ -126,44 +153,43 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-6 py-4 border-t border-gray-200">
-            {{ $patients->links() }}
+        <div class="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="text-sm text-gray-700">
+                Affichage de <span class="font-medium">{{ $patients->firstItem() }}</span> à <span class="font-medium">{{ $patients->lastItem() }}</span> 
+                sur <span class="font-medium">{{ $patients->total() }}</span> patient(s)
+            </div>
+            <div>
+                {{ $patients->links() }}
+            </div>
         </div>
     </div>
     @endif
 
-    <!-- Formulaire de création/édition -->
-    @if($showModal || $creationOnly)
-        @if($creationOnly)
-        <!-- Formulaire direct (sans modal) -->
-        <form wire:submit.prevent="save">
-            <div class="space-y-4 sm:space-y-6">
-        @else
-        <!-- Modal de création/édition -->
-        <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
-            <div class="relative p-4 w-full max-w-4xl max-h-full">
-                <!-- Modal content -->
-                <div class="relative bg-white rounded-lg shadow-sm">
-                    <!-- Modal header -->
-                    <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
-                        <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                            <i class="fas fa-user-plus text-blue-600"></i>
-                            <span>{{ $patientId ? 'Modifier le patient' : 'Nouveau patient' }}</span>
-                        </h3>
-                        <button type="button" 
-                                wire:click="closeModal"
-                                class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
-                            <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
-                            </svg>
-                            <span class="sr-only">Fermer</span>
-                        </button>
-                    </div>
-                    <!-- Modal body -->
-                    <form wire:submit.prevent="save">
-                        <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-                            <div class="space-y-4 sm:space-y-6">
-        @endif
+    <!-- Modal de création/édition -->
+    @if($showModal && !$creationOnly)
+    <div class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full bg-black bg-opacity-50">
+        <div class="relative p-4 w-full max-w-4xl max-h-full">
+            <!-- Modal content -->
+            <div class="relative bg-white rounded-lg shadow-sm">
+                <!-- Modal header -->
+                <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-gray-200">
+                    <h3 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                        <i class="fas fa-user-plus text-blue-600"></i>
+                        <span>{{ $patientId ? 'Modifier le patient' : 'Nouveau patient' }}</span>
+                    </h3>
+                    <button type="button" 
+                            wire:click="closeModal"
+                            class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center">
+                        <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+                        </svg>
+                        <span class="sr-only">Fermer</span>
+                    </button>
+                </div>
+                <!-- Modal body -->
+                <form wire:submit.prevent="save">
+                    <div class="p-4 md:p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                        <div class="space-y-4 sm:space-y-6">
                             <!-- Informations personnelles -->
                             <div class="bg-gray-50 p-4 rounded-lg animate-speed-fade-in" style="animation-delay: 0.1s;">
                                 <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
@@ -270,33 +296,9 @@
                                     </label>
                                 </div>
                             </div>
-        @if($creationOnly)
-            </div>
-            <!-- Footer formulaire direct -->
-            <div class="flex items-center justify-end p-4 md:p-5 border-t border-gray-200 rounded-b gap-3">
-                <button type="button" 
-                        wire:click="$emit('patientCreated')"
-                        class="py-2.5 px-5 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100">
-                    Annuler
-                </button>
-                <button type="submit" 
-                        wire:loading.attr="disabled"
-                        wire:loading.class="opacity-50 cursor-not-allowed"
-                        class="py-2.5 px-5 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300">
-                    <span wire:loading.remove wire:target="save">
-                        <i class="fas fa-save mr-2"></i>
-                        Enregistrer
-                    </span>
-                    <span wire:loading wire:target="save" class="flex items-center">
-                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Enregistrement...
-                    </span>
-                </button>
-            </div>
-        </form>
-        @else
                         </div>
                     </div>
+                    
                     <!-- Modal footer -->
                     <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b">
                         <button type="button" 
@@ -319,11 +321,145 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Formulaire de création/édition (sans modal imbriqué si creationOnly) -->
+    @if($showModal && $creationOnly)
+    <form wire:submit.prevent="save">
+        <div class="space-y-4 sm:space-y-6">
+            <!-- Informations personnelles -->
+            <div class="bg-gray-50 p-4 rounded-lg animate-speed-fade-in" style="animation-delay: 0.1s;">
+                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                    <i class="fas fa-user mr-2 text-blue-600"></i>
+                    Informations personnelles
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="identifiantPatient" class="block text-sm font-medium text-gray-700">N° Fiche</label>
+                        <input type="number" wire:model.defer="identifiantPatient" id="identifiantPatient" class="modal-form-input" @if(!$patientId) disabled @endif>
+                        @error('identifiantPatient') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        @if(!$patientId)
+                            <p class="text-xs text-gray-500">Le N° Fiche est généré automatiquement à la création.</p>
+                        @endif
                     </div>
+                    <div>
+                        <label for="nom" class="block text-sm font-medium text-gray-700">Nom *</label>
+                        <input type="text" wire:model.defer="nom" id="nom" class="modal-form-input" placeholder="Entrez le nom du patient">
+                        @error('nom') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label for="nni" class="block text-sm font-medium text-gray-700">NNI</label>
+                        <input type="text" wire:model.defer="nni" id="nni" class="modal-form-input" placeholder="Numéro d'identité national">
+                        @error('nni') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label for="genre" class="block text-sm font-medium text-gray-700">Genre</label>
+                        <select wire:model.defer="genre" id="genre" class="modal-form-input">
+                            <option value="">Sélectionner</option>
+                            <option value="H">Homme (H)</option>
+                            <option value="F">Femme (F)</option>
+                        </select>
+                        @error('genre') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label for="dateNaissance" class="block text-sm font-medium text-gray-700">Date de naissance</label>
+                        <input type="date" wire:model.defer="dateNaissance" id="dateNaissance" class="modal-form-input">
+                        @error('dateNaissance') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label for="telephone1" class="block text-sm font-medium text-gray-700">Téléphone principal *</label>
+                        <input type="tel" wire:model.defer="telephone1" id="telephone1" class="modal-form-input" placeholder="Ex: +222 12345678">
+                        @error('telephone1') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label for="telephone2" class="block text-sm font-medium text-gray-700">Téléphone secondaire</label>
+                        <input type="tel" wire:model.defer="telephone2" id="telephone2" class="modal-form-input" placeholder="Ex: +222 12345678">
+                        @error('telephone2') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label for="adresse" class="block text-sm font-medium text-gray-700">Adresse</label>
+                        <textarea wire:model.defer="adresse" id="adresse" rows="2" class="modal-form-input" placeholder="Adresse complète du patient"></textarea>
+                        @error('adresse') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" wire:model="isAssured" class="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Patient assuré</span>
+                    </label>
+                </div>
+
+                @if($isAssured)
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-speed-fade-in" style="animation-delay: 0.2s;">
+                    <div>
+                        <label for="assureur" class="block text-sm font-medium text-gray-700">Assureur *</label>
+                        <select wire:model="assureur" id="assureur" class="modal-form-input">
+                            <option value="">Sélectionner un assureur</option>
+                            @foreach($assureurs as $assureur)
+                                <option value="{{ $assureur->IDAssureur }}">{{ $assureur->LibAssurance }}</option>
+                            @endforeach
+                        </select>
+                        @error('assureur') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label for="identifiantAssurance" class="block text-sm font-medium text-gray-700">Identifiant Assurance *</label>
+                        <input type="text" wire:model="identifiantAssurance" id="identifiantAssurance" class="modal-form-input" placeholder="Numéro d'assuré">
+                        @error('identifiantAssurance') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                @endif
+            </div>
+
+            <!-- Statut du patient -->
+            <div class="bg-gray-50 p-4 rounded-lg animate-speed-fade-in" style="animation-delay: 0.3s;">
+                <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                    <i class="fas fa-toggle-on mr-2 text-blue-600"></i>
+                    Statut du patient
+                </h4>
+                <div>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" wire:model.defer="isActive" class="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Patient actif</span>
+                    </label>
                 </div>
             </div>
         </div>
-        @endif
+        
+        <!-- Footer -->
+        <div class="flex items-center justify-end p-4 md:p-5 border-t border-gray-200 mt-4">
+            <button type="button" 
+                    wire:click="closeModal"
+                    class="py-2.5 px-5 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100">
+                Annuler
+            </button>
+            <button type="submit" 
+                    wire:loading.attr="disabled"
+                    wire:loading.class="opacity-50 cursor-not-allowed"
+                    class="py-2.5 px-5 ms-3 text-sm font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300">
+                <span wire:loading.remove wire:target="save">
+                    <i class="fas fa-save mr-2"></i>
+                    Enregistrer
+                </span>
+                <span wire:loading wire:target="save" class="flex items-center">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Enregistrement...
+                </span>
+            </button>
+        </div>
+    </form>
     @endif
 
     <!-- Modal d'historique des paiements -->

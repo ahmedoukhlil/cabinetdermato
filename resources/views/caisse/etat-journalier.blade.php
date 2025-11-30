@@ -33,8 +33,9 @@
         .a5 .montant-lettres { font-size: 10px; margin-top: 12px; }
         .recu-header, .recu-footer { width: 100%; text-align: center; }
         .recu-header img, .recu-footer img { max-width: 100%; height: auto; }
-        .recu-footer { position: absolute; bottom: 0; left: 0; width: 100%; }
-        @media print { .a4, .a5 { box-shadow: none; } .recu-footer { position: fixed; bottom: 0; left: 0; width: 100%; } .print-controls { display: none !important; } }
+        .recu-footer { position: absolute; bottom: 0; left: 0; right: 0; width: 100%; display: block; padding: 0 18mm 0 10mm; }
+        .recu-footer .footer { margin-top: 0 !important; display: block !important; }
+        @media print { .a4, .a5 { box-shadow: none; } .recu-footer { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; display: block !important; padding: 0 18mm 0 10mm; } .recu-footer .footer { display: block !important; margin-top: 0 !important; } .print-controls { display: none !important; } }
         .print-controls { display: flex; gap: 10px; justify-content: flex-end; margin: 18px 0; }
         .print-controls select, .print-controls button { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
         .print-controls button { background: #2c5282; color: #fff; border: none; cursor: pointer; }
@@ -115,7 +116,7 @@
         <table class="bloc-patient-table">
             <tr>
                 <td class="label">Cabinet :</td>
-                <td class="value">{{ $cabinet->Nom ?? 'Cabinet Dermatologie' }}</td>
+                <td class="value">{{ $cabinet->Nom ?? 'Cabinet Dr Salma' }}</td>
                 <td class="ref-cell" colspan="2">
                     <span class="ref-label">Date :</span>
                     <span class="ref-value">{{ $date->format('d/m/Y') }}</span>
@@ -209,7 +210,9 @@
         <div class="signature-name">{{ $user->NomComplet ?? 'Non spécifié' }}</div>
     </div>
 
-    <div class="recu-footer">@include('partials.recu-footer')</div>
+    <div class="recu-footer" style="width: 100%; position: absolute; bottom: 0; left: 0; right: 0; display: block; padding: 0 18mm 0 10mm;">
+        @include('partials.recu-footer')
+    </div>
 </div>
 
 <script>

@@ -3,24 +3,6 @@
         <h2 class="text-2xl font-bold">Facture/DEVIS</h2>
         <p class="text-primary-light mt-1">Sélectionnez un patient pour gérer ses paiements</p>
     </div>
-    
-    {{-- Onglets de séparation Actes / Pharmacie --}}
-    @if($selectedPatient)
-    <div class="bg-white rounded-lg shadow-md border border-gray-200">
-        <div class="border-b border-gray-200">
-            <nav class="flex -mb-px">
-                <button wire:click="switchTabInterface('actes')" 
-                        class="flex-1 px-6 py-4 text-center font-semibold text-sm transition-colors duration-200 {{ $activeTabInterface === 'actes' ? 'border-b-4 border-blue-600 text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50' }}">
-                    <i class="fas fa-stethoscope mr-2"></i>Facturation des Actes
-                </button>
-                <button wire:click="switchTabInterface('pharmacie')" 
-                        class="flex-1 px-6 py-4 text-center font-semibold text-sm transition-colors duration-200 {{ $activeTabInterface === 'pharmacie' ? 'border-b-4 border-purple-600 text-purple-600 bg-purple-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50' }}">
-                    <i class="fas fa-pills mr-2"></i>Facturation Pharmacie
-                </button>
-            </nav>
-        </div>
-    </div>
-    @endif
 
     <div class="bg-white rounded-lg shadow-xl overflow-hidden">
         <div class="p-6">
@@ -56,28 +38,13 @@
     @endif
 
     <!-- Liste des factures -->
-    @if($selectedPatient)
-        @if($factures && $factures->count() > 0)
+    @if($factures)
     <div class="mb-6" wire:loading.class="opacity-50">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold flex items-center gap-2">
-                @if($activeTabInterface === 'pharmacie')
-                    <i class="fas fa-pills text-purple-600"></i>
-                    <span>Factures Pharmacie du patient</span>
-                @else
-                    <i class="fas fa-stethoscope text-blue-600"></i>
-                    <span>Factures Actes du patient</span>
-                @endif
-            </h2>
-            @if($activeTabInterface === 'actes')
-            <button wire:click="openMedecinModal" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center gap-2">
-                <i class="fas fa-plus"></i> Nouvelle facture actes
+            <h2 class="text-xl font-semibold">Factures du patient</h2>
+            <button wire:click="openMedecinModal" class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition-colors duration-200 flex items-center gap-2">
+                <i class="fas fa-plus"></i> Nouvelle facture
             </button>
-            @else
-            <button wire:click="openMedecinModal" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2">
-                <i class="fas fa-plus"></i> Nouvelle facture pharmacie
-            </button>
-            @endif
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -90,6 +57,9 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total règlements patient</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reste à payer patient</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                        @if($isDocteurProprietaire)
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -98,30 +68,12 @@
                         $isAssure = $facture->ISTP > 0;
                         $resteAPayerPatient = ($isAssure ? ($facture->TotalfactPatient ?? 0) : ($facture->TotFacture ?? 0)) - ($facture->TotReglPatient ?? 0);
                         $resteAPayerPEC = $isAssure ? (($facture->TotalPEC ?? 0) - ($facture->ReglementPEC ?? 0)) : 0;
-                        $typeFacture = $facture->typeFacture; // 'pharmacie', 'actes', 'mixte', 'autre'
                     @endphp
                     <tr @if($factureSelectionnee && $factureSelectionnee['id'] == $facture->Idfacture) class="bg-yellow-50" @endif 
                         wire:key="facture-{{ $facture->Idfacture }}"
                         style="cursor:pointer" 
                         wire:click.stop="selectionnerFacture({{ $facture->Idfacture }})">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center gap-2">
-                                {{ $facture->Nfacture }}
-                                @if($typeFacture === 'pharmacie')
-                                    <span class="inline-block px-2 py-1 rounded-full bg-purple-100 text-purple-700 border border-purple-300 text-xs font-semibold" title="Facture Pharmacie">
-                                        <i class="fas fa-pills mr-1"></i>Pharmacie
-                                    </span>
-                                @elseif($typeFacture === 'actes')
-                                    <span class="inline-block px-2 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-300 text-xs font-semibold" title="Facture Actes">
-                                        <i class="fas fa-stethoscope mr-1"></i>Actes
-                                    </span>
-                                @elseif($typeFacture === 'mixte')
-                                    <span class="inline-block px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-300 text-xs font-semibold" title="Facture Mixte">
-                                        <i class="fas fa-layer-group mr-1"></i>Mixte
-                                    </span>
-                                @endif
-                            </div>
-                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ $facture->Nfacture }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">Dr. {{ $facture->medecin->Nom ?? 'Non spécifié' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ number_format($facture->TotFacture ?? 0, 0, '', ' ') }} MRU</td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -146,30 +98,22 @@
                                 <span class="inline-block px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 text-xs font-semibold">Réglée</span>
                             @endif
                         </td>
+                        @if($isDocteurProprietaire)
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button 
+                                wire:click.stop="supprimerFacture({{ $facture->Idfacture }})"
+                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer définitivement la facture N°{{ $facture->Nfacture }} ? Cette action est irréversible et supprimera toutes les traces de cette facture (détails, opérations de caisse, mouvements de stock). Le stock sera restauré.')"
+                                class="text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                title="Supprimer la facture">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                        @endif
                     </tr>
                     @if($factureSelectionnee && $factureSelectionnee['id'] == $facture->Idfacture)
                         <tr wire:key="details-{{ $facture->Idfacture }}">
-                            <td colspan="8" class="bg-yellow-50 px-6 py-4">
-                                @php
-                                    $typeFacture = $facture->typeFacture;
-                                    $detailsGroupes = $facture->getDetailsGroupesParType();
-                                @endphp
-                                @if($typeFacture === 'pharmacie')
-                                    <div class="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                                        <i class="fas fa-pills text-purple-600"></i>
-                                        <span>Médicaments de la facture :</span>
-                                    </div>
-                                @elseif($typeFacture === 'actes')
-                                    <div class="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                                        <i class="fas fa-stethoscope text-blue-600"></i>
-                                        <span>Actes de la facture :</span>
-                                    </div>
-                                @else
-                                    <div class="mb-2 font-semibold text-gray-700 flex items-center gap-2">
-                                        <i class="fas fa-layer-group text-indigo-600"></i>
-                                        <span>Détails de la facture :</span>
-                                    </div>
-                                @endif
+                            <td colspan="{{ $isDocteurProprietaire ? '8' : '7' }}" class="bg-yellow-50 px-6 py-4">
+                                <div class="mb-2 font-semibold text-gray-700">Actes de la facture :</div>
                                 <div wire:loading.remove wire:target="selectionnerFacture">
                                     <table class="min-w-full mb-2">
                                         <thead>
@@ -183,94 +127,48 @@
                                         </thead>
                                         <tbody>
                                             @php
-                                                // S'assurer que les détails sont chargés
-                                                if (!$facture->relationLoaded('details')) {
-                                                    $facture->load('details');
-                                                }
                                                 $details = $facture->details ?? collect();
                                                 $totalPrix = $details->sum(function($detail) {
                                                     return $detail->PrixFacture * $detail->Quantite;
                                                 });
                                             @endphp
-                                            @if($details->count() > 0)
                                             @foreach($details as $detail)
-                                                @php
-                                                    $isMedicament = $detail->IsAct == 2;
-                                                    $isActe = $detail->IsAct == 1;
-                                                    $isAnalyse = $detail->IsAct == 3;
-                                                    $isRadio = $detail->IsAct == 4;
-                                                @endphp
                                                 <tr wire:key="detail-{{ $detail->idDetfacture }}">
                                                     <td class="px-2 py-1">
                                                         @if(in_array(Auth::user()->IdClasseUser ?? null, [2, 3]))
-                                                            <button onclick="event.stopPropagation(); if(confirm('Êtes-vous sûr de vouloir supprimer {{ $isMedicament ? 'ce médicament' : ($isActe ? 'cet acte' : 'cet item') }} ?')) { @this.removeActe({{ $detail->idDetfacture }}) }" class="text-red-600 hover:text-red-800">
+                                                            <button onclick="event.stopPropagation(); if(confirm('Êtes-vous sûr de vouloir supprimer cet acte ?')) { @this.removeActe({{ $detail->idDetfacture }}) }" class="text-red-600 hover:text-red-800">
                                                                 <i class="fas fa-trash"></i>
                                                             </button>
                                                         @endif
                                                     </td>
-                                                    <td class="px-2 py-1">
-                                                        <div class="flex items-center gap-2">
-                                                            @if($isMedicament)
-                                                                <i class="fas fa-pills text-purple-600" title="Médicament"></i>
-                                                            @elseif($isActe)
-                                                                <i class="fas fa-stethoscope text-blue-600" title="Acte médical"></i>
-                                                            @elseif($isAnalyse)
-                                                                <i class="fas fa-flask text-green-600" title="Analyse"></i>
-                                                            @elseif($isRadio)
-                                                                <i class="fas fa-x-ray text-orange-600" title="Radio"></i>
-                                                            @endif
-                                                            <span>{{ $detail->Actes }}</span>
-                                                        </div>
-                                                    </td>
+                                                    <td class="px-2 py-1">{{ $detail->Actes }}</td>
                                                     <td class="px-2 py-1">{{ $detail->Quantite }}</td>
-                                                    <td class="px-2 py-1">{{ number_format($detail->PrixFacture, 0) }}</td>
-                                                    <td class="px-2 py-1">{{ number_format($detail->PrixFacture * $detail->Quantite, 0) }}</td>
+                                                    <td class="px-2 py-1">{{ number_format($detail->PrixFacture, 2) }}</td>
+                                                    <td class="px-2 py-1">{{ number_format($detail->PrixFacture * $detail->Quantite, 2) }}</td>
                                                 </tr>
                                             @endforeach
                                             <tr>
                                                 <td colspan="4" class="text-right"><strong>Total&nbsp;:</strong></td>
                                                 <td><strong>{{ number_format($totalPrix, 0, '', ' ') }} MRU</strong></td>
                                             </tr>
-                                            @else
-                                            <tr>
-                                                <td colspan="5" class="text-center py-4 text-gray-500">
-                                                    <i class="fas fa-info-circle mr-2"></i>
-                                                    Aucun détail trouvé pour cette facture.
-                                                </td>
-                                            </tr>
-                                            @endif
                                         </tbody>
                                     </table>
                                     <div class="flex flex-row gap-2 justify-between mt-4">
-                                         @if($typeFacture !== 'pharmacie')
                                          <button wire:click.stop="openDossierMedicalModal({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2">
                                              <i class="fas fa-file-medical"></i> Dossier médical
                                          </button>
-                                         @else
-                                         <div></div>
-                                         @endif
                                          <div class="flex flex-row gap-2">
                                              <button wire:click.stop="ouvrirReglementFacture({{ $facture->Idfacture }})" class="min-w-[120px] px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-primary-dark transition-colors duration-200 flex items-center justify-center">
                                                  Payer
                                              </button>
-                                             @if($typeFacture === 'pharmacie' && $resteAPayerPatient > 0)
-                                             <button wire:click.stop="annulerFacturePharmacie({{ $facture->Idfacture }})" 
-                                                     wire:confirm="Êtes-vous sûr de vouloir annuler cette facture ? Les articles seront remis au stock."
-                                                     class="min-w-[120px] px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 flex items-center justify-center gap-2"
-                                                     title="Annuler la facture et remettre les articles au stock">
-                                                 <i class="fas fa-times-circle"></i>
-                                                 Annuler
-                                             </button>
-                                             @endif
-                                            @if($activeTabInterface === 'actes')
-                                            <button wire:click.stop="openAddActeForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2">
-                                                <i class="fas fa-plus"></i> Ajouter un acte
-                                            </button>
-                                            @elseif($typeFacture !== 'pharmacie')
-                                            <button wire:click.stop="openAddMedicamentForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors duration-200 flex items-center justify-center gap-2">
-                                                <i class="fas fa-pills"></i> Ajouter médicament
-                                            </button>
-                                            @endif
+                                             <div class="flex flex-wrap gap-2">
+                                                 <button wire:click.stop="openAddActeForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-primary-dark transition-colors duration-200 flex items-center justify-center gap-2">
+                                                     <i class="fas fa-plus"></i> Ajouter un acte
+                                                 </button>
+                                                 <button wire:click.stop="openAddMedicamentForm({{ $facture->Idfacture }})" class="min-w-[150px] px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2">
+                                                     <i class="fas fa-pills"></i> Médicament/Analyse/Radio
+                                                 </button>
+                                             </div>
                                              <a href="{{ route('consultations.facture-patient', $facture->Idfacture) }}" target="_blank" class="min-w-[120px] px-4 py-2 text-sm font-semibold bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center gap-2">
                                                  <i class="fas fa-print"></i> Imprimer
                                              </a>
@@ -293,19 +191,6 @@
             {{ $factures->links() }}
         </div>
     </div>
-        @else
-            <!-- Message si aucune facture -->
-            <div class="mb-6 p-6 bg-gray-50 rounded-lg border border-gray-200 text-center">
-                <i class="fas fa-inbox text-gray-400 text-4xl mb-3"></i>
-                <p class="text-gray-600 text-lg font-medium">
-                    @if($activeTabInterface === 'pharmacie')
-                        Aucune facture de pharmacie trouvée pour ce patient.
-                    @else
-                        Aucune facture d'actes trouvée pour ce patient.
-                    @endif
-                </p>
-            </div>
-        @endif
     @endif
 
     <!-- Modal de règlement de facture -->
@@ -360,7 +245,7 @@
                                 Montant du paiement
                             </label>
                             <div class="mt-1">
-                                <input type="number" step="1" wire:model="montantReglement" id="montantReglement"
+                                <input type="number" step="0.01" wire:model="montantReglement" id="montantReglement"
                                     class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 rounded-md"
                                     placeholder="Entrez un montant positif pour un paiement/acompte, négatif pour un remboursement">
                             </div>
@@ -370,7 +255,7 @@
                                 </p>
                             @else
                                 <p class="mt-2 text-sm text-gray-500">
-                                    Montant restant à payer : {{ number_format($factureSelectionnee['reste_a_payer'] ?? 0, 0) }} MRU
+                                    Montant restant à payer : {{ number_format($factureSelectionnee['reste_a_payer'] ?? 0, 2) }} MRU
                                 </p>
                             @endif
                         </div>
@@ -413,7 +298,6 @@
         </div>
     </div>
     @endif
-
 
     <!-- Formulaire d'ajout d'acte sous la facture sélectionnée -->
     @if($showAddActeForm && $factureIdForActe)
@@ -466,11 +350,7 @@
                                 @endif
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
-                                    <input type="number" wire:model.defer="quantite" step="1" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-white text-gray-900 focus:border-primary focus:ring-primary" min="1">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Séance (Dent)</label>
-                                    <input type="text" wire:model.defer="seance" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-white text-gray-900 focus:border-primary focus:ring-primary">
+                                    <input type="number" wire:model.defer="quantite" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-white text-gray-900 focus:border-primary focus:ring-primary" min="1">
                                 </div>
                             </div>
                             <div class="mt-6 flex justify-end">
@@ -538,12 +418,28 @@
                                 @if($selectedMedicamentId)
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Prix de référence</label>
-                                        <input type="number" wire:model="prixReferenceMedicament" step="1" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-gray-50 text-gray-900" readonly>
+                                        <input type="number" wire:model="prixReferenceMedicament" step="0.01" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-gray-50 text-gray-900" readonly>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Prix facturé</label>
-                                        <input type="number" wire:model="prixFactureMedicament" step="1" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-white text-gray-900 focus:border-primary focus:ring-primary">
+                                        <input type="number" wire:model="prixFactureMedicament" step="0.01" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-white text-gray-900 focus:border-primary focus:ring-primary">
                                     </div>
+                                    @if($selectedMedicamentType == '1')
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Stock disponible</label>
+                                        <div class="mt-1 p-3 rounded-md border {{ ($stockDisponibleMedicament ?? 0) > 0 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50' }}">
+                                            <span class="text-sm font-semibold {{ ($stockDisponibleMedicament ?? 0) > 0 ? 'text-green-700' : 'text-red-700' }}">
+                                                <i class="fas {{ ($stockDisponibleMedicament ?? 0) > 0 ? 'fa-check-circle' : 'fa-exclamation-triangle' }} mr-2"></i>
+                                                {{ number_format($stockDisponibleMedicament ?? 0, 0) }} unité(s) disponible(s)
+                                                @if(($stockDisponibleMedicament ?? 0) == 0)
+                                                    <span class="text-xs block mt-1 font-normal">⚠️ Stock épuisé - Impossible d'ajouter à la facture</span>
+                                                @elseif(($stockDisponibleMedicament ?? 0) < 10)
+                                                    <span class="text-xs block mt-1 font-normal text-orange-600">⚠️ Stock faible</span>
+                                                @endif
+                                            </span>
+                                        </div>
+                                    </div>
+                                    @endif
                                     @php
                                         $isAssure = $selectedPatient['Assureur'] ?? 0;
                                         $txpec = $selectedPatient['TauxPEC'] ?? 0;
@@ -565,11 +461,7 @@
                                     @endif
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
-                                        <input type="number" wire:model.defer="quantiteMedicament" step="1" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-white text-gray-900 focus:border-primary focus:ring-primary" min="1">
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Séance (Dent)</label>
-                                        <input type="text" wire:model.defer="seanceMedicament" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-white text-gray-900 focus:border-primary focus:ring-primary">
+                                        <input type="number" wire:model.defer="quantiteMedicament" class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm bg-white text-gray-900 focus:border-primary focus:ring-primary" min="1">
                                     </div>
                                 @endif
                             </div>
@@ -674,66 +566,4 @@
     @endif
 </div>
 
-{{-- L'écouteur open-receipt est géré globalement dans le layout principal pour éviter les doublons --}}
-
-@push('scripts')
-<script>
-    // Écouter l'événement pour sélectionner automatiquement une facture de pharmacie
-    // Note: Cet événement n'est plus utilisé car ouvrirFacturePharmacie gère maintenant directement l'ouverture
-    // Mais on le garde pour compatibilité si nécessaire
-    window.addEventListener('select-facture-pharmacie', event => {
-        const factureId = event.detail.factureId;
-        if (factureId) {
-            // Appeler directement ouvrirFacturePharmacie qui gère tout
-            @this.call('ouvrirFacturePharmacie', factureId);
-        }
-    });
-
-    // Écouter l'événement browser pour ouvrir une facture depuis la pharmacie
-    // Utiliser une fonction pour éviter les doublons
-    function setupOuvrirFacturePharmacieListener() {
-        // Supprimer l'ancien écouteur s'il existe
-        if (window.ouvrirFacturePharmacieHandler) {
-            window.removeEventListener('ouvrir-facture-pharmacie', window.ouvrirFacturePharmacieHandler);
-        }
-        
-        // Créer un nouveau handler
-        window.ouvrirFacturePharmacieHandler = function(event) {
-            const factureId = event.detail?.factureId;
-            if (factureId && @this) {
-                console.log('Événement ouvrir-facture-pharmacie reçu, factureId:', factureId);
-                // Attendre un peu pour que le composant soit complètement monté
-                setTimeout(() => {
-                    try {
-                        @this.call('ouvrirFacturePharmacie', factureId);
-                        console.log('Méthode ouvrirFacturePharmacie appelée avec factureId:', factureId);
-                    } catch (error) {
-                        console.error('Erreur lors de l\'appel de ouvrirFacturePharmacie:', error);
-                        // Réessayer après un délai plus long
-                        setTimeout(() => {
-                            @this.call('ouvrirFacturePharmacie', factureId);
-                        }, 1000);
-                    }
-                }, 500);
-            }
-        };
-        
-        window.addEventListener('ouvrir-facture-pharmacie', window.ouvrirFacturePharmacieHandler);
-    }
-
-    // Initialiser l'écouteur au chargement
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', setupOuvrirFacturePharmacieListener);
-    } else {
-        setupOuvrirFacturePharmacieListener();
-    }
-
-    // Réinitialiser après chaque mise à jour Livewire pour s'assurer que l'écouteur est actif
-    Livewire.hook('message.processed', (message, component) => {
-        // Vérifier si c'est le composant ReglementFacture
-        if (component && component.el && component.el.closest('[wire\\:id*="reglement"]')) {
-            setupOuvrirFacturePharmacieListener();
-        }
-    });
-</script>
-@endpush 
+{{-- L'écouteur open-receipt est géré globalement dans le layout principal pour éviter les doublons --}} 

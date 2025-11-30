@@ -119,6 +119,7 @@ Route::get('/test-modals', function () {
         Route::get('/consultations/{facture}/receipt', [ConsultationController::class, 'showReceipt'])->name('consultations.receipt');
 
         Route::get('/facture-patient/{facture}', [ConsultationController::class, 'showFacturePatient'])->name('consultations.facture-patient');
+        Route::get('/ordonnance/{consultation}', [ConsultationController::class, 'showOrdonnance'])->name('consultations.ordonnance');
     });
 
     // Routes pour les ordonnances

@@ -19,6 +19,23 @@
                 @endif
 
                 <form class="space-y-4">
+                    <!-- Type de consultation -->
+                    <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Type de consultation *</label>
+                        <div class="flex gap-6">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio" wire:model.live="typeConsultation" value="generaliste" 
+                                       class="h-4 w-4 text-primary focus:ring-primary border-gray-300">
+                                <span class="ml-2 text-sm font-medium text-gray-700">Consultation généraliste</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio" wire:model.live="typeConsultation" value="specialiste" 
+                                       class="h-4 w-4 text-primary focus:ring-primary border-gray-300">
+                                <span class="ml-2 text-sm font-medium text-gray-700">Consultation spécialiste</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <!-- Sélection du patient -->
                         @if($patient)
@@ -69,7 +86,12 @@
                         <!-- Montant de la consultation (en lecture seule) -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Montant</label>
-                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-lg font-semibold text-gray-900">{{ number_format($montant, 2) }} MRU</div>
+                            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-lg font-semibold text-gray-900">
+                                {{ number_format($montant, 2) }} MRU
+                                <span class="text-xs text-gray-500 block mt-1">
+                                    {{ $typeConsultation === 'specialiste' ? 'Consultation spécialiste' : 'Consultation généraliste' }}
+                                </span>
+                            </div>
                         </div>
                     </div>
 

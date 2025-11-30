@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Cabinet Dermatologie</title>
+    <title>Cabinet Dr Salma</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
@@ -147,7 +147,7 @@
                 <div class="flex items-center space-x-8">
                     <div class="flex items-center">
                         <a href="{{ route('accueil.patient') }}" class="flex items-center">
-                            <span class="text-xl font-bold text-[#1e3a8a]">Cabinet Dermatologie</span>
+                            <span class="text-xl font-bold text-[#1e3a8a]">Cabinet Dr Salma</span>
                         </a>
                     </div>
                     <!-- Menu desktop -->

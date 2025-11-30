@@ -31,6 +31,8 @@ class CaisseOperationsManager extends Component
     private const CACHE_KEY_MEDECINS = 'caisse_medecins';
     private const CACHE_KEY_OPERATIONS = 'caisse_operations_';
 
+    protected $listeners = ['caisseOperationsUpdated' => '$refresh'];
+
     public function mount()
     {
         $user = Auth::user();
