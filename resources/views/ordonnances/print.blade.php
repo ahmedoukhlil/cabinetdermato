@@ -360,7 +360,7 @@
             <div class="footer-ar">الرجاء إحضار الوصفة عند الاستشارة القادمة</div>
             <div class="footer-fr">Prier de rapporter l'ordonnance à la prochaine Consultation</div>
             <div style="margin-top: 10px;">
-                @include('partials.recu-footer')
+            @include('partials.recu-footer')
             </div>
         </div>
     </div>

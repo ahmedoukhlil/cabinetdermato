@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Connexion - Cabinet Savwa</title>
+    <title>Connexion - Cabinet Dr Salma</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -12,7 +12,7 @@
     <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <div class="max-w-md w-full space-y-8">
             <div class="text-center">
-                <h2 class="text-3xl font-bold text-[#1e3a8a]">Cabinet Savwa</h2>
+                <h2 class="text-3xl font-bold text-[#1e3a8a]">Cabinet Dr Salma</h2>
                 <p class="mt-2 text-sm text-gray-600">Connectez-vous à votre compte</p>
             </div>
 
@@ -85,7 +85,7 @@
             <!-- Footer -->
             <div class="text-center mt-8">
                 <p class="text-sm text-gray-600">
-                    &copy; {{ date('Y') }} Cabinet Savwa. Tous droits réservés.
+                    &copy; {{ date('Y') }} Cabinet Dr Salma. Tous droits réservés.
                 </p>
             </div>
         </div>
